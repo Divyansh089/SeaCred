@@ -6,6 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { Leaf } from "lucide-react";
 import { CheckIcon } from "@heroicons/react/24/outline";
+import Link from "next/link";
+import MetaMaskConnect from "@/components/ui/MetaMaskConnect";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -164,6 +166,36 @@ export default function LoginPage() {
                     <div className="text-sm text-gray-500">{account.email}</div>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Sign up link */}
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Don't have an account?{" "}
+                <Link
+                  href="/signup"
+                  className="font-medium text-green-600 hover:text-green-500"
+                >
+                  Sign up
+                </Link>
+              </p>
+            </div>
+
+            {/* MetaMask Connection */}
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="bg-white px-2 text-gray-500">
+                    Or connect with MetaMask
+                  </span>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-center">
+                <MetaMaskConnect />
               </div>
             </div>
           </div>

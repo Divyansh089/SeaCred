@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import ExportReportButton from "@/components/ui/ExportReportButton";
 import {
   ClockIcon,
   CheckCircleIcon,
@@ -16,6 +17,7 @@ import { CarbonProject, VerificationReport, ProjectWorkflow } from "@/types";
 import WorkflowManager from "@/components/verification/WorkflowManager";
 import VerificationReportForm from "@/components/verification/VerificationReportForm";
 import AIVerificationPanel from "@/components/ai/AIVerificationPanel";
+import VerificationDetails from "@/components/verification/VerificationDetails";
 
 const mockProjects: CarbonProject[] = [
   {
@@ -109,7 +111,7 @@ const mockProjects: CarbonProject[] = [
     createdAt: new Date("2024-08-10"),
     updatedAt: new Date("2024-08-10"),
     verificationStatus: "pending",
-    assignedOfficerId: null,
+    assignedOfficerId: undefined,
     landArea: 200,
   },
 ];
@@ -127,6 +129,8 @@ export default function VerificationsPage() {
     null
   );
   const [activeTab, setActiveTab] = useState("projects");
+  const [showVerificationDetails, setShowVerificationDetails] = useState(false);
+  const [selectedProjectForDetails, setSelectedProjectForDetails] = useState<CarbonProject | null>(null);
 
   // Redirect if user doesn't have access
   if (user?.role === "project_authority") {
@@ -175,18 +179,25 @@ export default function VerificationsPage() {
     console.log("Verification report submitted:", report);
   };
 
-  const handleAIAnalysisComplete = (results: {
-    success: boolean;
-    data: unknown;
-  }) => {
+  const handleAIAnalysisComplete = (results: any) => {
     console.log("AI analysis completed:", results);
+  };
+
+  const handleViewVerificationDetails = (project: CarbonProject) => {
+    setSelectedProjectForDetails(project);
+    setShowVerificationDetails(true);
+  };
+
+  const handleCloseVerificationDetails = () => {
+    setShowVerificationDetails(false);
+    setSelectedProjectForDetails(null);
   };
 
   return (
     <DashboardLayout>
       <div className="px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="sm:flex sm:items-center">
+        <div className="sm:flex sm:items-center sm:justify-between">
           <div className="sm:flex-auto">
             <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
               Project Verifications
@@ -196,6 +207,41 @@ export default function VerificationsPage() {
               accuracy.
             </p>
           </div>
+                     <div className="mt-4 sm:mt-0 sm:ml-4 flex space-x-3">
+             <button
+               onClick={() => {
+                 if (filteredProjects.length > 0) {
+                   handleViewVerificationDetails(filteredProjects[0]);
+                 }
+               }}
+               className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+             >
+               <EyeIcon className="h-4 w-4 mr-2" />
+               View Verification Details
+             </button>
+             <ExportReportButton
+               data={{
+                 projects: filteredProjects,
+                 stats: {
+                   pending: mockProjects.filter(
+                     (p) => p.verificationStatus === "pending"
+                   ).length,
+                   inProgress: mockProjects.filter(
+                     (p) => p.verificationStatus === "pending" && p.assignedOfficerId
+                   ).length,
+                   completed: mockProjects.filter(
+                     (p) => p.verificationStatus === "verified"
+                   ).length,
+                   rejected: mockProjects.filter(
+                     (p) => p.verificationStatus === "rejected"
+                   ).length,
+                 },
+                 userRole: user?.role,
+               }}
+               reportType="Verification Report"
+               variant="dropdown"
+             />
+           </div>
         </div>
 
         {/* Stats Cards */}
@@ -387,24 +433,31 @@ export default function VerificationsPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-3">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              verificationStatusColors[
-                                project.verificationStatus
-                              ]
-                            }`}
-                          >
-                            {project.verificationStatus}
-                          </span>
-                          <button
-                            onClick={() => setSelectedProject(project)}
-                            className="inline-flex items-center text-sm text-green-600 hover:text-green-500"
-                          >
-                            <EyeIcon className="h-4 w-4 mr-1" />
-                            View
-                          </button>
-                        </div>
+                                                 <div className="flex items-center space-x-3">
+                           <span
+                             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                               verificationStatusColors[
+                                 project.verificationStatus
+                               ]
+                             }`}
+                           >
+                             {project.verificationStatus}
+                           </span>
+                           <button
+                             onClick={() => handleViewVerificationDetails(project)}
+                             className="inline-flex items-center text-sm text-blue-600 hover:text-blue-500"
+                           >
+                             <EyeIcon className="h-4 w-4 mr-1" />
+                             Details
+                           </button>
+                           <button
+                             onClick={() => setSelectedProject(project)}
+                             className="inline-flex items-center text-sm text-green-600 hover:text-green-500"
+                           >
+                             <EyeIcon className="h-4 w-4 mr-1" />
+                             Workflow
+                           </button>
+                         </div>
                       </div>
 
                       <div className="mt-2 sm:flex sm:justify-between">
@@ -415,10 +468,11 @@ export default function VerificationsPage() {
                               ? "Assigned"
                               : "Unassigned"}
                           </p>
-                                                            <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                                    <CalendarIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                                    Created {project.createdAt.toLocaleDateString('en-US')}
-                                  </p>
+                          <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
+                            <CalendarIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+                            Created{" "}
+                            {project.createdAt.toLocaleDateString("en-US")}
+                          </p>
                         </div>
                         <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
                           <DocumentTextIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
@@ -517,8 +571,16 @@ export default function VerificationsPage() {
               />
             </div>
           </div>
-        )}
-      </div>
-    </DashboardLayout>
-  );
-}
+                 )}
+
+         {/* Verification Details Modal */}
+         {showVerificationDetails && selectedProjectForDetails && (
+           <VerificationDetails
+             project={selectedProjectForDetails}
+             onClose={handleCloseVerificationDetails}
+           />
+         )}
+       </div>
+     </DashboardLayout>
+   );
+ }

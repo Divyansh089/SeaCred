@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import ExportReportButton from "@/components/ui/ExportReportButton";
 import Badge from "@/components/ui/Badge";
 import {
   MapPinIcon,
@@ -113,7 +114,7 @@ export default function ProjectsPage() {
     <DashboardLayout>
       <div className="px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="sm:flex sm:items-center">
+        <div className="sm:flex sm:items-center sm:justify-between">
           <div className="sm:flex-auto">
             <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
               Carbon Credit Projects
@@ -123,7 +124,32 @@ export default function ProjectsPage() {
               location, and credit information.
             </p>
           </div>
-          <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+          <div className="mt-4 sm:mt-0 sm:flex space-x-3">
+            <ExportReportButton
+              data={{
+                projects: filteredProjects,
+                stats: {
+                  total: filteredProjects.length,
+                  pending: filteredProjects.filter(
+                    (p) => p.status === "pending"
+                  ).length,
+                  approved: filteredProjects.filter(
+                    (p) => p.status === "approved"
+                  ).length,
+                  active: filteredProjects.filter((p) => p.status === "active")
+                    .length,
+                  completed: filteredProjects.filter(
+                    (p) => p.status === "completed"
+                  ).length,
+                  rejected: filteredProjects.filter(
+                    (p) => p.status === "rejected"
+                  ).length,
+                },
+                userRole: user?.role,
+              }}
+              reportType="Projects Report"
+              variant="dropdown"
+            />
             {user?.role === "project_authority" && (
               <a
                 href="/projects/new"
@@ -250,7 +276,7 @@ export default function ProjectsPage() {
                   <div>
                     <span className="text-gray-500">Available Credits:</span>
                     <span className="ml-1 font-medium text-gray-900">
-                                                      {project.availableCredits.toLocaleString('en-US')}
+                      {project.availableCredits.toLocaleString("en-US")}
                     </span>
                   </div>
                   <div className="flex items-center text-green-600">

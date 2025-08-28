@@ -17,6 +17,7 @@ import {
   BellIcon,
 } from "@heroicons/react/24/outline";
 import { Leaf } from "lucide-react";
+import MetaMaskConnect from "@/components/ui/MetaMaskConnect";
 
 interface NavItem {
   name: string;
@@ -210,7 +211,10 @@ export default function DashboardLayout({
                 </div>
               </div>
             </div>
-            <div className="ml-4 flex items-center md:ml-6">
+            <div className="ml-4 flex items-center md:ml-6 space-x-4">
+              {/* MetaMask Connection */}
+              <MetaMaskConnect variant="badge" />
+
               <button
                 type="button"
                 className="rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
