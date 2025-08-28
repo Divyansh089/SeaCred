@@ -13,6 +13,12 @@ import { User } from "@/types";
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
+  signup: (userData: {
+    name: string;
+    email: string;
+    password: string;
+    role: string;
+  }) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -97,6 +103,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const signup = useCallback(
+    async (userData: {
+      name: string;
+      email: string;
+      password: string;
+      role: string;
+    }): Promise<boolean> => {
+      setIsLoading(true);
+
+      try {
+        // Only allow project authority signups
+        if (userData.role !== "project_authority") {
+          console.error("Only project authority signups are allowed");
+          setIsLoading(false);
+          return false;
+        }
+
+        // Mock signup - replace with actual API call
+        const newUser: User = {
+          id: Date.now().toString(),
+          email: userData.email,
+          name: userData.name,
+          role: "project_authority",
+          avatar: `/avatars/project_authority.jpg`,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        // In a real app, you would save this to your backend
+        // For now, we'll just set the user directly
+        setUser(newUser);
+        localStorage.setItem("user", JSON.stringify(newUser));
+        setIsLoading(false);
+        return true;
+      } catch (error) {
+        console.error("Signup error:", error);
+        setIsLoading(false);
+        return false;
+      }
+    },
+    []
+  );
+
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem("user");
@@ -105,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

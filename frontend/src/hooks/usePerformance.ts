@@ -151,3 +151,4 @@ export function usePerformanceMonitor() {
 
   return { fps: fps.current };
 }
+

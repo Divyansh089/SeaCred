@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import MetaMaskConnect from "@/components/ui/MetaMaskConnect";
+import ExportReportButton from "@/components/ui/ExportReportButton";
 import {
   CurrencyDollarIcon,
   WalletIcon,
@@ -152,7 +154,7 @@ export default function CreditsPage() {
     <DashboardLayout>
       <div className="px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="sm:flex sm:items-center">
+        <div className="sm:flex sm:items-center sm:justify-between">
           <div className="sm:flex-auto">
             <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
               Carbon Credits Management
@@ -165,6 +167,25 @@ export default function CreditsPage() {
               {user?.role === "admin" &&
                 "Monitor credit distributions and blockchain operations"}
             </p>
+          </div>
+          <div className="mt-4 sm:mt-0 sm:ml-4">
+            <ExportReportButton
+              data={{
+                totalCredits: getTotalCredits(),
+                availableCredits: getAvailableCredits(),
+                walletAddress: getWalletAddress(),
+                distributions: mockDistributions.filter((dist) => {
+                  if (user?.role === "officer")
+                    return dist.officerId === user.id;
+                  if (user?.role === "project_authority")
+                    return dist.authorityId === user.id;
+                  return true; // Admin sees all
+                }),
+                credits: mockCredits,
+              }}
+              reportType="Carbon Credits Report"
+              variant="dropdown"
+            />
           </div>
         </div>
 
@@ -182,7 +203,7 @@ export default function CreditsPage() {
                       Total Credits
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {getTotalCredits().toLocaleString('en-US')} tCO2e
+                      {getTotalCredits().toLocaleString("en-US")} tCO2e
                     </dd>
                   </dl>
                 </div>
@@ -201,9 +222,9 @@ export default function CreditsPage() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       Available Credits
                     </dt>
-                                         <dd className="text-lg font-medium text-gray-900">
-                       {getAvailableCredits().toLocaleString('en-US')} tCO2e
-                     </dd>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {getAvailableCredits().toLocaleString("en-US")} tCO2e
+                    </dd>
                   </dl>
                 </div>
               </div>
@@ -289,7 +310,9 @@ export default function CreditsPage() {
                           <div className="flex items-center space-x-4">
                             <div className="text-right">
                               <p className="text-sm font-medium text-gray-900">
-                                {distribution.totalCredits.toLocaleString('en-US')}{" "}
+                                {distribution.totalCredits.toLocaleString(
+                                  "en-US"
+                                )}{" "}
                                 tCO2e
                               </p>
                               <p className="text-sm text-gray-500">
@@ -357,9 +380,9 @@ export default function CreditsPage() {
                     <h4 className="text-sm font-medium text-gray-900 mb-2">
                       Credit Balance
                     </h4>
-                                         <p className="text-2xl font-bold text-green-600">
-                       {getAvailableCredits().toLocaleString('en-US')} tCO2e
-                     </p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {getAvailableCredits().toLocaleString("en-US")} tCO2e
+                    </p>
                   </div>
 
                   <div className="bg-gray-50 rounded-lg p-4">
@@ -433,7 +456,7 @@ export default function CreditsPage() {
                               100,
                           0
                         )
-                                                 .toLocaleString('en-US')}{" "}
+                        .toLocaleString("en-US")}{" "}
                       tCO2e
                     </p>
                   </div>
@@ -442,9 +465,9 @@ export default function CreditsPage() {
                     <h4 className="text-sm font-medium text-gray-900 mb-2">
                       Available Credits
                     </h4>
-                                         <p className="text-2xl font-bold text-blue-600">
-                       {getAvailableCredits().toLocaleString('en-US')} tCO2e
-                     </p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {getAvailableCredits().toLocaleString("en-US")} tCO2e
+                    </p>
                   </div>
                 </div>
 
@@ -466,6 +489,20 @@ export default function CreditsPage() {
             </div>
           </div>
         )}
+
+        {/* MetaMask Connection */}
+        <div className="mt-8">
+          <div className="bg-white shadow rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Blockchain Wallet Connection
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Connect your MetaMask wallet to receive and manage carbon credits
+              on the blockchain.
+            </p>
+            <MetaMaskConnect />
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

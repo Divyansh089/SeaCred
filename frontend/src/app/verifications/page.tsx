@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import ExportReportButton from "@/components/ui/ExportReportButton";
 import {
   ClockIcon,
   CheckCircleIcon,
@@ -109,7 +110,7 @@ const mockProjects: CarbonProject[] = [
     createdAt: new Date("2024-08-10"),
     updatedAt: new Date("2024-08-10"),
     verificationStatus: "pending",
-    assignedOfficerId: null,
+    assignedOfficerId: undefined,
     landArea: 200,
   },
 ];
@@ -175,10 +176,7 @@ export default function VerificationsPage() {
     console.log("Verification report submitted:", report);
   };
 
-  const handleAIAnalysisComplete = (results: {
-    success: boolean;
-    data: unknown;
-  }) => {
+  const handleAIAnalysisComplete = (results: any) => {
     console.log("AI analysis completed:", results);
   };
 
@@ -186,7 +184,7 @@ export default function VerificationsPage() {
     <DashboardLayout>
       <div className="px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="sm:flex sm:items-center">
+        <div className="sm:flex sm:items-center sm:justify-between">
           <div className="sm:flex-auto">
             <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
               Project Verifications
@@ -195,6 +193,30 @@ export default function VerificationsPage() {
               Review and verify carbon credit projects for compliance and
               accuracy.
             </p>
+          </div>
+          <div className="mt-4 sm:mt-0 sm:ml-4">
+            <ExportReportButton
+              data={{
+                projects: filteredProjects,
+                stats: {
+                  pending: mockProjects.filter(
+                    (p) => p.verificationStatus === "pending"
+                  ).length,
+                  inProgress: mockProjects.filter(
+                    (p) => p.verificationStatus === "in_progress"
+                  ).length,
+                  completed: mockProjects.filter(
+                    (p) => p.verificationStatus === "completed"
+                  ).length,
+                  rejected: mockProjects.filter(
+                    (p) => p.verificationStatus === "rejected"
+                  ).length,
+                },
+                userRole: user?.role,
+              }}
+              reportType="Verification Report"
+              variant="dropdown"
+            />
           </div>
         </div>
 
@@ -415,10 +437,11 @@ export default function VerificationsPage() {
                               ? "Assigned"
                               : "Unassigned"}
                           </p>
-                                                            <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                                    <CalendarIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                                    Created {project.createdAt.toLocaleDateString('en-US')}
-                                  </p>
+                          <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
+                            <CalendarIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+                            Created{" "}
+                            {project.createdAt.toLocaleDateString("en-US")}
+                          </p>
                         </div>
                         <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
                           <DocumentTextIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
