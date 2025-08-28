@@ -18,6 +18,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { Leaf } from "lucide-react";
 import MetaMaskConnect from "@/components/ui/MetaMaskConnect";
+import Avatar from "@/components/ui/Avatar";
 
 interface NavItem {
   name: string;
@@ -69,12 +70,7 @@ export default function DashboardLayout({
     setSidebarOpen(false);
   }, []);
 
-  const userAvatarUrl = useMemo(() => {
-    if (user?.avatar) return user.avatar;
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      user?.name || ""
-    )}&background=059669&color=fff`;
-  }, [user?.avatar, user?.name]);
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -226,13 +222,10 @@ export default function DashboardLayout({
               <div className="relative ml-3">
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
-                    <Image
-                      className="h-8 w-8 rounded-full"
-                      src={userAvatarUrl}
-                      alt="User avatar"
-                      width={32}
-                      height={32}
-                      unoptimized
+                    <Avatar
+                      src={user?.avatar}
+                      alt={user?.name || "User"}
+                      size="md"
                     />
                   </div>
                   <div className="hidden md:block">
