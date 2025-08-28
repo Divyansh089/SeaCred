@@ -17,6 +17,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { CarbonProject, VerificationReport } from "@/types";
 import Badge from "@/components/ui/Badge";
+import VerificationReportGenerator from "./VerificationReportGenerator";
 
 interface VerificationDetailsProps {
   project: CarbonProject;
@@ -53,6 +54,7 @@ export default function VerificationDetails({
   onClose,
 }: VerificationDetailsProps) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [showReportGenerator, setShowReportGenerator] = useState(false);
 
   // Mock verification steps
   const verificationSteps: VerificationStep[] = [
@@ -63,7 +65,8 @@ export default function VerificationDetails({
       description: "Review of project documentation and legal compliance",
       completedAt: new Date("2024-08-18"),
       assignedTo: "Jane Officer",
-      notes: "All required documents submitted and verified. Legal compliance confirmed.",
+      notes:
+        "All required documents submitted and verified. Legal compliance confirmed.",
       documents: [
         { id: "1", name: "Document Review Report.pdf", type: "pdf", url: "#" },
       ],
@@ -74,7 +77,8 @@ export default function VerificationDetails({
       status: "in_progress",
       description: "Physical site inspection and verification",
       assignedTo: "Jane Officer",
-      notes: "Site visit scheduled for next week. Preliminary assessment completed.",
+      notes:
+        "Site visit scheduled for next week. Preliminary assessment completed.",
     },
     {
       id: "3",
@@ -208,7 +212,7 @@ export default function VerificationDetails({
     { id: "overview", name: "Overview", icon: InformationCircleIcon },
     { id: "steps", name: "Verification Steps", icon: DocumentTextIcon },
     { id: "validation", name: "Validation Checks", icon: ShieldCheckIcon },
-    { id: "documents", name: "Documents", icon: DocumentTextIcon },
+    { id: "ai-analysis", name: "AI Analysis", icon: CalculatorIcon },
     { id: "calculations", name: "Carbon Calculations", icon: CalculatorIcon },
   ];
 
@@ -276,7 +280,9 @@ export default function VerificationDetails({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Land Area:</span>
-                    <span className="font-medium">{project.landArea} hectares</span>
+                    <span className="font-medium">
+                      {project.landArea} hectares
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Credits:</span>
@@ -335,18 +341,29 @@ export default function VerificationDetails({
                   <div className="flex justify-between">
                     <span className="text-gray-600">Steps Completed:</span>
                     <span className="font-medium">
-                      {verificationSteps.filter((s) => s.status === "completed").length} / {verificationSteps.length}
+                      {
+                        verificationSteps.filter(
+                          (s) => s.status === "completed"
+                        ).length
+                      }{" "}
+                      / {verificationSteps.length}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Validation Passed:</span>
                     <span className="font-medium">
-                      {validationChecks.filter((v) => v.status === "pass").length} / {validationChecks.length}
+                      {
+                        validationChecks.filter((v) => v.status === "pass")
+                          .length
+                      }{" "}
+                      / {validationChecks.length}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Documents:</span>
-                    <span className="font-medium">{project.documents.length} files</span>
+                    <span className="font-medium">
+                      {project.documents.length} files
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Images:</span>
@@ -368,14 +385,21 @@ export default function VerificationDetails({
                   <DocumentTextIcon className="h-4 w-4 mr-2" />
                   Start Verification
                 </button>
-                <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                  <EyeIcon className="h-4 w-4 mr-2" />
-                  View Documents
+                <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
+                  <CalculatorIcon className="h-4 w-4 mr-2" />
+                  Run AI Analysis
                 </button>
-                                 <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
-                   <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-                   Export Report
-                 </button>
+                <button
+                  onClick={() => setShowReportGenerator(true)}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700"
+                >
+                  <DocumentTextIcon className="h-4 w-4 mr-2" />
+                  Generate Report
+                </button>
+                <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                  <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                  Export Report
+                </button>
               </div>
             </div>
           </div>
@@ -389,10 +413,14 @@ export default function VerificationDetails({
                 Verification Workflow Steps
               </h3>
               <Badge variant="info">
-                {verificationSteps.filter((s) => s.status === "completed").length} / {verificationSteps.length} Completed
+                {
+                  verificationSteps.filter((s) => s.status === "completed")
+                    .length
+                }{" "}
+                / {verificationSteps.length} Completed
               </Badge>
             </div>
-            
+
             <div className="space-y-4">
               {verificationSteps.map((step, index) => (
                 <div
@@ -446,7 +474,9 @@ export default function VerificationDetails({
                         )}
                         {step.documents && step.documents.length > 0 && (
                           <div className="mt-2">
-                            <p className="text-xs text-gray-500 mb-1">Documents:</p>
+                            <p className="text-xs text-gray-500 mb-1">
+                              Documents:
+                            </p>
                             <div className="flex space-x-2">
                               {step.documents.map((doc) => (
                                 <button
@@ -494,13 +524,19 @@ export default function VerificationDetails({
               </h3>
               <div className="flex space-x-2">
                 <Badge variant="success">
-                  {validationChecks.filter((v) => v.status === "pass").length} Passed
+                  {validationChecks.filter((v) => v.status === "pass").length}{" "}
+                  Passed
                 </Badge>
                 <Badge variant="error">
-                  {validationChecks.filter((v) => v.status === "fail").length} Failed
+                  {validationChecks.filter((v) => v.status === "fail").length}{" "}
+                  Failed
                 </Badge>
                 <Badge variant="warning">
-                  {validationChecks.filter((v) => v.status === "warning").length} Warnings
+                  {
+                    validationChecks.filter((v) => v.status === "warning")
+                      .length
+                  }{" "}
+                  Warnings
                 </Badge>
               </div>
             </div>
@@ -513,7 +549,10 @@ export default function VerificationDetails({
                   return acc;
                 }, {} as Record<string, ValidationCheck[]>)
               ).map(([category, checks]) => (
-                <div key={category} className="border border-gray-200 rounded-lg p-4">
+                <div
+                  key={category}
+                  className="border border-gray-200 rounded-lg p-4"
+                >
                   <h4 className="text-lg font-medium text-gray-900 mb-3">
                     {category} Validation
                   </h4>
@@ -536,7 +575,9 @@ export default function VerificationDetails({
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-sm text-gray-600">{check.details}</p>
+                            <p className="text-sm text-gray-600">
+                              {check.details}
+                            </p>
                           </div>
                         </div>
                         <Badge
@@ -561,76 +602,125 @@ export default function VerificationDetails({
           </div>
         )}
 
-        {/* Documents Tab */}
-        {activeTab === "documents" && (
+        {/* AI Analysis Tab */}
+        {activeTab === "ai-analysis" && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium text-gray-900">
-                Project Documents
+                AI-Powered Verification Analysis
               </h3>
-              <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
-                <DocumentTextIcon className="h-4 w-4 mr-2" />
-                Upload Document
+              <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
+                <CalculatorIcon className="h-4 w-4 mr-2" />
+                Run AI Analysis
               </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="text-md font-medium text-gray-900 mb-3">
-                  Project Documents ({project.documents.length})
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <h4 className="text-md font-medium text-purple-900 mb-3">
+                  AI Analysis Results
                 </h4>
-                <div className="space-y-2">
-                  {project.documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <DocumentTextIcon className="h-5 w-5 text-blue-500" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {doc.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Uploaded {doc.uploadedAt.toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <button className="text-blue-600 hover:text-blue-800">
-                        <EyeIcon className="h-4 w-4" />
-                      </button>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                      <span className="text-sm font-medium">
+                        Document Compliance
+                      </span>
                     </div>
-                  ))}
+                    <Badge variant="success">95% Match</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
+                      <span className="text-sm font-medium">
+                        Risk Assessment
+                      </span>
+                    </div>
+                    <Badge variant="warning">Medium Risk</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                      <span className="text-sm font-medium">
+                        Methodology Validation
+                      </span>
+                    </div>
+                    <Badge variant="success">Approved</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <ClockIcon className="h-5 w-5 text-blue-500" />
+                      <span className="text-sm font-medium">
+                        Carbon Calculation
+                      </span>
+                    </div>
+                    <Badge variant="info">Pending Review</Badge>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <h4 className="text-md font-medium text-gray-900 mb-3">
-                  Land Images ({project.landImages?.length || 0})
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="text-md font-medium text-blue-900 mb-3">
+                  AI Recommendations
                 </h4>
-                <div className="space-y-2">
-                  {project.landImages?.map((image) => (
-                    <div
-                      key={image.id}
-                      className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <PhotoIcon className="h-5 w-5 text-green-500" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {image.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Uploaded {image.uploadedAt.toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <button className="text-green-600 hover:text-green-800">
-                        <EyeIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
+                <div className="space-y-3 text-sm">
+                  <div className="p-3 bg-white rounded-lg">
+                    <p className="font-medium text-blue-900 mb-1">
+                      ✅ Strengths
+                    </p>
+                    <ul className="text-blue-800 space-y-1">
+                      <li>• Strong environmental impact assessment</li>
+                      <li>• Comprehensive baseline scenario</li>
+                      <li>• Clear monitoring methodology</li>
+                    </ul>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg">
+                    <p className="font-medium text-orange-900 mb-1">
+                      ⚠️ Areas for Improvement
+                    </p>
+                    <ul className="text-orange-800 space-y-1">
+                      <li>• Additional stakeholder consultation needed</li>
+                      <li>
+                        • Carbon calculation methodology requires refinement
+                      </li>
+                      <li>• Risk mitigation strategies could be enhanced</li>
+                    </ul>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg">
+                    <p className="font-medium text-green-900 mb-1">
+                      🎯 Next Steps
+                    </p>
+                    <ul className="text-green-800 space-y-1">
+                      <li>• Complete stakeholder engagement process</li>
+                      <li>• Refine carbon calculation parameters</li>
+                      <li>• Conduct additional site assessment</li>
+                    </ul>
+                  </div>
                 </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h4 className="text-md font-medium text-gray-900 mb-3">
+                AI Analysis Summary
+              </h4>
+              <div className="text-sm text-gray-700 space-y-2">
+                <p>
+                  <strong>Overall Assessment:</strong> The project demonstrates
+                  strong potential for carbon credit generation with a
+                  comprehensive approach to environmental impact assessment. The
+                  methodology is sound but requires minor refinements in carbon
+                  calculation parameters.
+                </p>
+                <p>
+                  <strong>Confidence Level:</strong> 87% - High confidence in
+                  project viability with recommended improvements.
+                </p>
+                <p>
+                  <strong>Estimated Timeline:</strong> 2-3 weeks for addressing
+                  identified improvements before final verification.
+                </p>
               </div>
             </div>
           </div>
@@ -657,7 +747,9 @@ export default function VerificationDetails({
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Land Area:</span>
-                    <span className="font-medium">{project.landArea} hectares</span>
+                    <span className="font-medium">
+                      {project.landArea} hectares
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Project Duration:</span>
@@ -697,12 +789,17 @@ export default function VerificationDetails({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Price per Credit:</span>
-                    <span className="font-medium">${project.pricePerCredit}</span>
+                    <span className="font-medium">
+                      ${project.pricePerCredit}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Value:</span>
                     <span className="font-medium">
-                      ${(project.totalCredits * project.pricePerCredit).toLocaleString()}
+                      $
+                      {(
+                        project.totalCredits * project.pricePerCredit
+                      ).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -715,20 +812,32 @@ export default function VerificationDetails({
               </h4>
               <div className="text-sm text-blue-800 space-y-2">
                 <p>
-                  <strong>Methodology:</strong> AR-ACM0003 - Afforestation and reforestation of degraded land
+                  <strong>Methodology:</strong> AR-ACM0003 - Afforestation and
+                  reforestation of degraded land
                 </p>
                 <p>
-                  <strong>Formula:</strong> Carbon Credits = (Baseline Emissions - Project Emissions) × Leakage Factor
+                  <strong>Formula:</strong> Carbon Credits = (Baseline Emissions
+                  - Project Emissions) × Leakage Factor
                 </p>
                 <p>
-                  <strong>Verification:</strong> Annual monitoring and verification required
+                  <strong>Verification:</strong> Annual monitoring and
+                  verification required
                 </p>
                 <p>
-                  <strong>Uncertainty:</strong> ±15% margin of error applied to calculations
+                  <strong>Uncertainty:</strong> ±15% margin of error applied to
+                  calculations
                 </p>
               </div>
             </div>
           </div>
+        )}
+
+        {/* Verification Report Generator Modal */}
+        {showReportGenerator && (
+          <VerificationReportGenerator
+            project={project}
+            onClose={() => setShowReportGenerator(false)}
+          />
         )}
       </div>
     </div>
