@@ -1,0 +1,6 @@
+.quit
+cd frontend
+exit
+cd frontend
+cd frontend && npx hardhat compile
+cd frontend

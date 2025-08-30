@@ -1,188 +1,96 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CheckCircleIcon,
-  XCircleIcon,
   ClockIcon,
-  DocumentTextIcon,
-  PhotoIcon,
-  MapPinIcon,
-  CalculatorIcon,
-  ShieldCheckIcon,
+  XCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
-  EyeIcon,
-  ArrowDownTrayIcon,
+  CalculatorIcon,
+  DocumentTextIcon,
+  UserIcon,
 } from "@heroicons/react/24/outline";
-import { CarbonProject, VerificationReport } from "@/types";
 import Badge from "@/components/ui/Badge";
-import VerificationReportGenerator from "./VerificationReportGenerator";
+import { CarbonProject } from "@/types";
+import ComprehensiveVerificationForm from "./ComprehensiveVerificationForm";
+import { useAuth } from "@/contexts/AuthContext";
+import { 
+  startVerification, 
+  submitVerificationReport, 
+  getVerificationReport,
+  getProject,
+  VerificationReportData,
+  VerificationStatus
+} from "@/lib/web3";
 
 interface VerificationDetailsProps {
   project: CarbonProject;
   onClose: () => void;
 }
 
-interface VerificationStep {
-  id: string;
-  name: string;
-  status: "pending" | "in_progress" | "completed" | "failed";
-  description: string;
-  completedAt?: Date;
-  assignedTo?: string;
-  notes?: string;
-  documents?: Array<{
-    id: string;
-    name: string;
-    type: string;
-    url: string;
-  }>;
-}
-
-interface ValidationCheck {
-  id: string;
-  category: string;
-  check: string;
-  status: "pass" | "fail" | "warning" | "pending";
-  details: string;
-  required: boolean;
-}
-
 export default function VerificationDetails({
   project,
   onClose,
 }: VerificationDetailsProps) {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
-  const [showReportGenerator, setShowReportGenerator] = useState(false);
+  const [showComprehensiveVerificationForm, setShowComprehensiveVerificationForm] = useState(false);
+  const [verificationReportData, setVerificationReportData] = useState({
+    area: "",
+    plots: "",
+    uavFlights: "",
+    biomass: "",
+    uncertainty: "",
+    creditsRecommended: "",
+  });
+  const [verificationChecks, setVerificationChecks] = useState({
+    siteInspection: false,
+    documentationVerified: false,
+    measurementsValidated: false,
+    qualityAssurance: false,
+  });
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [isStartingVerification, setIsStartingVerification] = useState(false);
+  const [projectVerificationStatus, setProjectVerificationStatus] = useState<string>("PENDING");
+  const [existingVerificationReport, setExistingVerificationReport] = useState<any>(null);
 
-  // Mock verification steps
-  const verificationSteps: VerificationStep[] = [
-    {
-      id: "1",
-      name: "Document Review",
-      status: "completed",
-      description: "Review of project documentation and legal compliance",
-      completedAt: new Date("2024-08-18"),
-      assignedTo: "Jane Officer",
-      notes:
-        "All required documents submitted and verified. Legal compliance confirmed.",
-      documents: [
-        { id: "1", name: "Document Review Report.pdf", type: "pdf", url: "#" },
-      ],
-    },
-    {
-      id: "2",
-      name: "Site Inspection",
-      status: "in_progress",
-      description: "Physical site inspection and verification",
-      assignedTo: "Jane Officer",
-      notes:
-        "Site visit scheduled for next week. Preliminary assessment completed.",
-    },
-    {
-      id: "3",
-      name: "Technical Assessment",
-      status: "pending",
-      description: "Technical feasibility and methodology validation",
-    },
-    {
-      id: "4",
-      name: "Environmental Impact",
-      status: "pending",
-      description: "Environmental impact assessment and mitigation review",
-    },
-    {
-      id: "5",
-      name: "Carbon Calculation",
-      status: "pending",
-      description: "Carbon credit calculation methodology validation",
-    },
-    {
-      id: "6",
-      name: "Final Verification",
-      status: "pending",
-      description: "Final verification and approval process",
-    },
-  ];
+  // Load project verification status and existing report
+  useEffect(() => {
+    const loadProjectData = async () => {
+      try {
+        const projectData = await getProject(Number(project.id));
+        setProjectVerificationStatus(projectData.verificationStatus);
+        
+        // Load existing verification report if any
+        const report = await getVerificationReport(Number(project.id));
+        if (report) {
+          setExistingVerificationReport(report);
+        }
+      } catch (error) {
+        console.error("Error loading project data:", error);
+        // If project doesn't exist in new contract, set default status
+        setProjectVerificationStatus("PENDING");
+      }
+    };
 
-  // Mock validation checks
-  const validationChecks: ValidationCheck[] = [
-    {
-      id: "1",
-      category: "Documentation",
-      check: "Project Proposal",
-      status: "pass",
-      details: "Complete and properly formatted",
-      required: true,
-    },
-    {
-      id: "2",
-      category: "Documentation",
-      check: "Environmental Assessment",
-      status: "pass",
-      details: "Comprehensive environmental impact study provided",
-      required: true,
-    },
-    {
-      id: "3",
-      category: "Technical",
-      check: "Methodology Validation",
-      status: "warning",
-      details: "Methodology approved with minor modifications required",
-      required: true,
-    },
-    {
-      id: "4",
-      category: "Technical",
-      check: "Technology Assessment",
-      status: "pass",
-      details: "Proven technology with good track record",
-      required: true,
-    },
-    {
-      id: "5",
-      category: "Financial",
-      check: "Financial Viability",
-      status: "pass",
-      details: "Strong financial projections and funding secured",
-      required: true,
-    },
-    {
-      id: "6",
-      category: "Environmental",
-      check: "Carbon Calculation",
-      status: "pending",
-      details: "Awaiting detailed carbon calculation methodology",
-      required: true,
-    },
-    {
-      id: "7",
-      category: "Legal",
-      check: "Regulatory Compliance",
-      status: "pass",
-      details: "All regulatory requirements met",
-      required: true,
-    },
-    {
-      id: "8",
-      category: "Social",
-      check: "Community Impact",
-      status: "pass",
-      details: "Positive community impact assessment",
-      required: false,
-    },
-  ];
+    if (project.id) {
+      loadProjectData();
+    }
+  }, [project.id]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "completed":
       case "pass":
+      case "APPROVED":
         return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
       case "in_progress":
+      case "IN_PROGRESS":
         return <ClockIcon className="h-5 w-5 text-blue-500" />;
       case "failed":
       case "fail":
+      case "REJECTED":
         return <XCircleIcon className="h-5 w-5 text-red-500" />;
       case "warning":
         return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />;
@@ -195,11 +103,14 @@ export default function VerificationDetails({
     switch (status) {
       case "completed":
       case "pass":
+      case "APPROVED":
         return "bg-green-100 text-green-800";
       case "in_progress":
+      case "IN_PROGRESS":
         return "bg-blue-100 text-blue-800";
       case "failed":
       case "fail":
+      case "REJECTED":
         return "bg-red-100 text-red-800";
       case "warning":
         return "bg-yellow-100 text-yellow-800";
@@ -210,11 +121,115 @@ export default function VerificationDetails({
 
   const tabs = [
     { id: "overview", name: "Overview", icon: InformationCircleIcon },
-    { id: "steps", name: "Verification Steps", icon: DocumentTextIcon },
-    { id: "validation", name: "Validation Checks", icon: ShieldCheckIcon },
     { id: "ai-analysis", name: "AI Analysis", icon: CalculatorIcon },
-    { id: "calculations", name: "Carbon Calculations", icon: CalculatorIcon },
+    { id: "verification-report", name: "Verification Report", icon: DocumentTextIcon },
   ];
+
+  const handleOfficerVerificationSubmit = async (verificationData: any) => {
+    console.log("Officer verification submitted:", verificationData);
+    // Here you would typically send this data to the admin
+    // For now, we'll just log it and show a success message
+    alert("Verification submitted successfully! This will be sent to admin for review.");
+  };
+
+  const handleStartVerification = async () => {
+    if (!project.id) {
+      alert("Project ID not found");
+      return;
+    }
+
+    setIsStartingVerification(true);
+    try {
+      await startVerification(Number(project.id));
+      setProjectVerificationStatus("IN_PROGRESS");
+      alert("Verification started successfully!");
+    } catch (error) {
+      console.error("Error starting verification:", error);
+      alert("Error starting verification. Please try again.");
+    } finally {
+      setIsStartingVerification(false);
+    }
+  };
+
+  const handleVerificationReportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingReport(true);
+    
+    try {
+      if (!project.id) {
+        throw new Error("Project ID not found");
+      }
+
+      const reportData: VerificationReportData = {
+        area: verificationReportData.area,
+        plots: verificationReportData.plots,
+        uavFlights: verificationReportData.uavFlights,
+        biomass: verificationReportData.biomass,
+        uncertainty: verificationReportData.uncertainty,
+        creditsRecommended: verificationReportData.creditsRecommended,
+        siteInspection: verificationChecks.siteInspection,
+        documentationVerified: verificationChecks.documentationVerified,
+        measurementsValidated: verificationChecks.measurementsValidated,
+        qualityAssurance: verificationChecks.qualityAssurance,
+      };
+
+      await submitVerificationReport(Number(project.id), reportData);
+      
+      // Reload project data to get updated status
+      const projectData = await getProject(Number(project.id));
+      setProjectVerificationStatus(projectData.verificationStatus);
+      
+      // Load the submitted report
+      const report = await getVerificationReport(Number(project.id));
+      if (report) {
+        setExistingVerificationReport(report);
+      }
+      
+      alert("Verification report submitted successfully!");
+      
+      // Reset form
+      setVerificationReportData({
+        area: "",
+        plots: "",
+        uavFlights: "",
+        biomass: "",
+        uncertainty: "",
+        creditsRecommended: "",
+      });
+      setVerificationChecks({
+        siteInspection: false,
+        documentationVerified: false,
+        measurementsValidated: false,
+        qualityAssurance: false,
+      });
+    } catch (error) {
+      console.error("Error submitting verification report:", error);
+      alert("Error submitting verification report. Please try again.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
+  const handleVerificationReportChange = (field: string, value: string) => {
+    setVerificationReportData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleVerificationCheckChange = (check: string, checked: boolean) => {
+    setVerificationChecks(prev => ({
+      ...prev,
+      [check]: checked
+    }));
+  };
+
+  const canStartVerification = user?.role === "officer" && 
+    projectVerificationStatus === "PENDING";
+
+  const canSubmitReport = user?.role === "officer" && 
+    projectVerificationStatus === "IN_PROGRESS" && 
+    !existingVerificationReport;
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -275,19 +290,19 @@ export default function VerificationDetails({
                   <div className="flex justify-between">
                     <span className="text-gray-600">Type:</span>
                     <span className="font-medium">
-                      {project.projectType.replace("_", " ")}
+                      {project.projectType?.replace("_", " ") || "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Land Area:</span>
                     <span className="font-medium">
-                      {project.landArea} hectares
+                      {project.landArea ? `${project.landArea} hectares` : "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Credits:</span>
                     <span className="font-medium">
-                      {project.totalCredits.toLocaleString()} tCO2e
+                      {project.totalCredits ? `${project.totalCredits.toLocaleString()} tCO2e` : "N/A"}
                     </span>
                   </div>
                 </div>
@@ -302,32 +317,36 @@ export default function VerificationDetails({
                     <span className="text-gray-600">Overall Status:</span>
                     <Badge
                       variant={
-                        project.verificationStatus === "verified"
+                        projectVerificationStatus === "APPROVED"
                           ? "success"
-                          : project.verificationStatus === "pending"
-                          ? "warning"
-                          : "error"
+                          : projectVerificationStatus === "IN_PROGRESS"
+                          ? "info"
+                          : projectVerificationStatus === "REJECTED"
+                          ? "error"
+                          : "warning"
                       }
                     >
-                      {project.verificationStatus}
+                      {projectVerificationStatus.replace("_", " ")}
                     </Badge>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Assigned Officer:</span>
                     <span className="font-medium">
-                      {project.assignedOfficerId || "Unassigned"}
+                      {project.assignedOfficer && project.assignedOfficer !== "0x0000000000000000000000000000000000000000" 
+                        ? `${project.assignedOfficer.slice(0, 10)}...` 
+                        : "Unassigned"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Created:</span>
                     <span className="font-medium">
-                      {project.createdAt.toLocaleDateString()}
+                      {project.createdAt ? new Date(project.createdAt * 1000).toLocaleDateString() : "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Last Updated:</span>
+                    <span className="text-gray-600">Project Owner:</span>
                     <span className="font-medium">
-                      {project.updatedAt.toLocaleDateString()}
+                      {project.owner ? `${project.owner.slice(0, 10)}...` : "N/A"}
                     </span>
                   </div>
                 </div>
@@ -339,265 +358,54 @@ export default function VerificationDetails({
                 </h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Steps Completed:</span>
+                    <span className="text-gray-600">Verification Status:</span>
                     <span className="font-medium">
-                      {
-                        verificationSteps.filter(
-                          (s) => s.status === "completed"
-                        ).length
-                      }{" "}
-                      / {verificationSteps.length}
+                      {projectVerificationStatus.replace("_", " ")}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Validation Passed:</span>
+                    <span className="text-gray-600">Last Updated:</span>
                     <span className="font-medium">
-                      {
-                        validationChecks.filter((v) => v.status === "pass")
-                          .length
-                      }{" "}
-                      / {validationChecks.length}
+                      {project.createdAt ? new Date(project.createdAt * 1000).toLocaleDateString() : "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Documents:</span>
                     <span className="font-medium">
-                      {project.documents.length} files
+                      {project.ipfsUrl ? "Documents uploaded" : "No documents"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Images:</span>
+                    <span className="text-gray-600">Project Address:</span>
                     <span className="font-medium">
-                      {project.landImages?.length || 0} files
+                      {project.projectAddress || "N/A"}
                     </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="text-lg font-medium text-blue-900 mb-2">
-                Quick Actions
-              </h3>
-              <div className="flex space-x-4">
-                <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
-                  <DocumentTextIcon className="h-4 w-4 mr-2" />
-                  Start Verification
-                </button>
-                <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
-                  <CalculatorIcon className="h-4 w-4 mr-2" />
-                  Run AI Analysis
-                </button>
-                <button
-                  onClick={() => setShowReportGenerator(true)}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700"
+            {/* Start Verification Button */}
+            <div className="flex justify-end pt-4">
+              {canStartVerification && (
+                <button 
+                  onClick={handleStartVerification}
+                  disabled={isStartingVerification}
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <DocumentTextIcon className="h-4 w-4 mr-2" />
-                  Generate Report
+                  {isStartingVerification ? (
+                    <>
+                      <ClockIcon className="h-5 w-5 mr-2 animate-spin" />
+                      Starting...
+                    </>
+                  ) : (
+                    <>
+                      <UserIcon className="h-5 w-5 mr-2" />
+                      Start Verification
+                    </>
+                  )}
                 </button>
-                <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                  <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-                  Export Report
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Verification Steps Tab */}
-        {activeTab === "steps" && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">
-                Verification Workflow Steps
-              </h3>
-              <Badge variant="info">
-                {
-                  verificationSteps.filter((s) => s.status === "completed")
-                    .length
-                }{" "}
-                / {verificationSteps.length} Completed
-              </Badge>
-            </div>
-
-            <div className="space-y-4">
-              {verificationSteps.map((step, index) => (
-                <div
-                  key={step.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-3">
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-600">
-                            {index + 1}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(step.status)}
-                          <h4 className="text-lg font-medium text-gray-900">
-                            {step.name}
-                          </h4>
-                          <Badge
-                            variant={
-                              step.status === "completed"
-                                ? "success"
-                                : step.status === "in_progress"
-                                ? "info"
-                                : "warning"
-                            }
-                          >
-                            {step.status.replace("_", " ")}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {step.description}
-                        </p>
-                        {step.assignedTo && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Assigned to: {step.assignedTo}
-                          </p>
-                        )}
-                        {step.completedAt && (
-                          <p className="text-xs text-gray-500">
-                            Completed: {step.completedAt.toLocaleDateString()}
-                          </p>
-                        )}
-                        {step.notes && (
-                          <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
-                            <strong>Notes:</strong> {step.notes}
-                          </div>
-                        )}
-                        {step.documents && step.documents.length > 0 && (
-                          <div className="mt-2">
-                            <p className="text-xs text-gray-500 mb-1">
-                              Documents:
-                            </p>
-                            <div className="flex space-x-2">
-                              {step.documents.map((doc) => (
-                                <button
-                                  key={doc.id}
-                                  className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                                >
-                                  <DocumentTextIcon className="h-3 w-3 mr-1" />
-                                  {doc.name}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex space-x-2">
-                      {step.status === "pending" && (
-                        <button className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
-                          Start
-                        </button>
-                      )}
-                      {step.status === "in_progress" && (
-                        <button className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                          Continue
-                        </button>
-                      )}
-                      <button className="inline-flex items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                        <EyeIcon className="h-3 w-3 mr-1" />
-                        View
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Validation Checks Tab */}
-        {activeTab === "validation" && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">
-                Validation Checks
-              </h3>
-              <div className="flex space-x-2">
-                <Badge variant="success">
-                  {validationChecks.filter((v) => v.status === "pass").length}{" "}
-                  Passed
-                </Badge>
-                <Badge variant="error">
-                  {validationChecks.filter((v) => v.status === "fail").length}{" "}
-                  Failed
-                </Badge>
-                <Badge variant="warning">
-                  {
-                    validationChecks.filter((v) => v.status === "warning")
-                      .length
-                  }{" "}
-                  Warnings
-                </Badge>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {Object.entries(
-                validationChecks.reduce((acc, check) => {
-                  if (!acc[check.category]) acc[check.category] = [];
-                  acc[check.category].push(check);
-                  return acc;
-                }, {} as Record<string, ValidationCheck[]>)
-              ).map(([category, checks]) => (
-                <div
-                  key={category}
-                  className="border border-gray-200 rounded-lg p-4"
-                >
-                  <h4 className="text-lg font-medium text-gray-900 mb-3">
-                    {category} Validation
-                  </h4>
-                  <div className="space-y-3">
-                    {checks.map((check) => (
-                      <div
-                        key={check.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-center space-x-3">
-                          {getStatusIcon(check.status)}
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium text-gray-900">
-                                {check.check}
-                              </span>
-                              {check.required && (
-                                <Badge variant="error" className="text-xs">
-                                  Required
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-600">
-                              {check.details}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge
-                          variant={
-                            check.status === "pass"
-                              ? "success"
-                              : check.status === "fail"
-                              ? "error"
-                              : check.status === "warning"
-                              ? "warning"
-                              : "default"
-                          }
-                        >
-                          {check.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+              )}
             </div>
           </div>
         )}
@@ -681,162 +489,281 @@ export default function VerificationDetails({
                     </p>
                     <ul className="text-orange-800 space-y-1">
                       <li>• Additional stakeholder consultation needed</li>
-                      <li>
-                        • Carbon calculation methodology requires refinement
-                      </li>
-                      <li>• Risk mitigation strategies could be enhanced</li>
-                    </ul>
-                  </div>
-                  <div className="p-3 bg-white rounded-lg">
-                    <p className="font-medium text-green-900 mb-1">
-                      🎯 Next Steps
-                    </p>
-                    <ul className="text-green-800 space-y-1">
-                      <li>• Complete stakeholder engagement process</li>
-                      <li>• Refine carbon calculation parameters</li>
-                      <li>• Conduct additional site assessment</li>
+                      <li>• Consider alternative baseline scenarios</li>
+                      <li>• Enhance monitoring frequency</li>
                     </ul>
                   </div>
                 </div>
               </div>
             </div>
-
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h4 className="text-md font-medium text-gray-900 mb-3">
-                AI Analysis Summary
-              </h4>
-              <div className="text-sm text-gray-700 space-y-2">
-                <p>
-                  <strong>Overall Assessment:</strong> The project demonstrates
-                  strong potential for carbon credit generation with a
-                  comprehensive approach to environmental impact assessment. The
-                  methodology is sound but requires minor refinements in carbon
-                  calculation parameters.
-                </p>
-                <p>
-                  <strong>Confidence Level:</strong> 87% - High confidence in
-                  project viability with recommended improvements.
-                </p>
-                <p>
-                  <strong>Estimated Timeline:</strong> 2-3 weeks for addressing
-                  identified improvements before final verification.
-                </p>
-              </div>
-            </div>
           </div>
         )}
 
-        {/* Carbon Calculations Tab */}
-        {activeTab === "calculations" && (
+        {/* Verification Report Tab */}
+        {activeTab === "verification-report" && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium text-gray-900">
-                Carbon Credit Calculations
+                Verification Report
               </h3>
-              <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                <CalculatorIcon className="h-4 w-4 mr-2" />
-                Recalculate
-              </button>
+              <Badge variant="info">Basic Checks</Badge>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="text-md font-medium text-gray-900 mb-3">
-                  Calculation Parameters
+            {/* Show existing report if available */}
+            {existingVerificationReport && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h4 className="text-md font-medium text-green-900 mb-3">
+                  Submitted Verification Report
                 </h4>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Land Area:</span>
-                    <span className="font-medium">
-                      {project.landArea} hectares
-                    </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Area:</span>
+                    <span className="font-medium ml-2">{Number(existingVerificationReport.area) / 100} ha</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Project Duration:</span>
-                    <span className="font-medium">10 years</span>
+                  <div>
+                    <span className="text-gray-600">Plots:</span>
+                    <span className="font-medium ml-2">{Number(existingVerificationReport.plots)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Baseline Scenario:</span>
-                    <span className="font-medium">Business as usual</span>
+                  <div>
+                    <span className="text-gray-600">UAV Flights:</span>
+                    <span className="font-medium ml-2">{Number(existingVerificationReport.uavFlights)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Methodology:</span>
-                    <span className="font-medium">AR-ACM0003</span>
+                  <div>
+                    <span className="text-gray-600">Biomass:</span>
+                    <span className="font-medium ml-2">{Number(existingVerificationReport.biomass) / 100} t</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Verification Period:</span>
-                    <span className="font-medium">Annual</span>
+                  <div>
+                    <span className="text-gray-600">Uncertainty:</span>
+                    <span className="font-medium ml-2">{Number(existingVerificationReport.uncertainty) / 100}%</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Credits Recommended:</span>
+                    <span className="font-medium ml-2">{Number(existingVerificationReport.creditsRecommended) / 100} tCO₂e</span>
                   </div>
                 </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="text-md font-medium text-gray-900 mb-3">
-                  Carbon Credits Summary
-                </h4>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total Credits:</span>
-                    <span className="font-medium">
-                      {project.totalCredits.toLocaleString()} tCO2e
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Annual Average:</span>
-                    <span className="font-medium">
-                      {(project.totalCredits / 10).toLocaleString()} tCO2e/year
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Price per Credit:</span>
-                    <span className="font-medium">
-                      ${project.pricePerCredit}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total Value:</span>
-                    <span className="font-medium">
-                      $
-                      {(
-                        project.totalCredits * project.pricePerCredit
-                      ).toLocaleString()}
-                    </span>
-                  </div>
+                <div className="mt-4">
+                  <span className="text-gray-600">Submitted by:</span>
+                  <span className="font-medium ml-2">{existingVerificationReport.officerAddress.slice(0, 10)}...</span>
+                  <span className="text-gray-600 ml-4">on</span>
+                  <span className="font-medium ml-2">{new Date(Number(existingVerificationReport.submittedAt) * 1000).toLocaleDateString()}</span>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="text-md font-medium text-blue-900 mb-3">
-                Calculation Methodology
-              </h4>
-              <div className="text-sm text-blue-800 space-y-2">
-                <p>
-                  <strong>Methodology:</strong> AR-ACM0003 - Afforestation and
-                  reforestation of degraded land
-                </p>
-                <p>
-                  <strong>Formula:</strong> Carbon Credits = (Baseline Emissions
-                  - Project Emissions) × Leakage Factor
-                </p>
-                <p>
-                  <strong>Verification:</strong> Annual monitoring and
-                  verification required
-                </p>
-                <p>
-                  <strong>Uncertainty:</strong> ±15% margin of error applied to
-                  calculations
+            {/* Show form only if no report exists and verification is in progress */}
+            {!existingVerificationReport && canSubmitReport && (
+              <>
+                {/* Basic Verification Checks */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-medium text-gray-900 mb-3">
+                    Basic Verification Checks
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id="siteInspection"
+                        checked={verificationChecks.siteInspection}
+                        onChange={(e) => handleVerificationCheckChange("siteInspection", e.target.checked)}
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="siteInspection" className="text-sm text-gray-700">
+                        Site inspection completed
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id="documentationVerified"
+                        checked={verificationChecks.documentationVerified}
+                        onChange={(e) => handleVerificationCheckChange("documentationVerified", e.target.checked)}
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="documentationVerified" className="text-sm text-gray-700">
+                        Documentation verified
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id="measurementsValidated"
+                        checked={verificationChecks.measurementsValidated}
+                        onChange={(e) => handleVerificationCheckChange("measurementsValidated", e.target.checked)}
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="measurementsValidated" className="text-sm text-gray-700">
+                        Measurements validated
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id="qualityAssurance"
+                        checked={verificationChecks.qualityAssurance}
+                        onChange={(e) => handleVerificationCheckChange("qualityAssurance", e.target.checked)}
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="qualityAssurance" className="text-sm text-gray-700">
+                        Quality assurance checks passed
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <form onSubmit={handleVerificationReportSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label htmlFor="area" className="block text-sm font-medium text-gray-700 mb-2">
+                          Area (ha)
+                        </label>
+                        <input
+                          type="number"
+                          id="area"
+                          name="area"
+                          value={verificationReportData.area}
+                          onChange={(e) => handleVerificationReportChange("area", e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                          placeholder="Enter area in hectares"
+                          step="0.01"
+                          min="0"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="plots" className="block text-sm font-medium text-gray-700 mb-2">
+                          Plots (#)
+                        </label>
+                        <input
+                          type="number"
+                          id="plots"
+                          name="plots"
+                          value={verificationReportData.plots}
+                          onChange={(e) => handleVerificationReportChange("plots", e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                          placeholder="Enter number of plots"
+                          min="0"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="uavFlights" className="block text-sm font-medium text-gray-700 mb-2">
+                          UAV Flights (#)
+                        </label>
+                        <input
+                          type="number"
+                          id="uavFlights"
+                          name="uavFlights"
+                          value={verificationReportData.uavFlights}
+                          onChange={(e) => handleVerificationReportChange("uavFlights", e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                          placeholder="Enter number of UAV flights"
+                          min="0"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="biomass" className="block text-sm font-medium text-gray-700 mb-2">
+                          Biomass (t)
+                        </label>
+                        <input
+                          type="number"
+                          id="biomass"
+                          name="biomass"
+                          value={verificationReportData.biomass}
+                          onChange={(e) => handleVerificationReportChange("biomass", e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                          placeholder="Enter biomass in tonnes"
+                          step="0.01"
+                          min="0"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="uncertainty" className="block text-sm font-medium text-gray-700 mb-2">
+                          Uncertainty (%)
+                        </label>
+                        <input
+                          type="number"
+                          id="uncertainty"
+                          name="uncertainty"
+                          value={verificationReportData.uncertainty}
+                          onChange={(e) => handleVerificationReportChange("uncertainty", e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                          placeholder="Enter uncertainty percentage"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="creditsRecommended" className="block text-sm font-medium text-gray-700 mb-2">
+                          Credits Recommended (tCO₂e)
+                        </label>
+                        <input
+                          type="number"
+                          id="creditsRecommended"
+                          name="creditsRecommended"
+                          value={verificationReportData.creditsRecommended}
+                          onChange={(e) => handleVerificationReportChange("creditsRecommended", e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                          placeholder="Enter recommended credits"
+                          step="0.01"
+                          min="0"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                      <button
+                        type="submit"
+                        disabled={isSubmittingReport}
+                        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isSubmittingReport ? (
+                          <>
+                            <ClockIcon className="h-5 w-5 mr-2 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            <DocumentTextIcon className="h-5 w-5 mr-2" />
+                            Submit Verification Report
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </>
+            )}
+
+            {/* Show message if verification not started or already completed */}
+            {!canSubmitReport && !existingVerificationReport && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-yellow-800">
+                  {projectVerificationStatus === "PENDING" 
+                    ? "Please start verification first to submit a report."
+                    : "Verification report has already been submitted or verification is not in progress."}
                 </p>
               </div>
-            </div>
+            )}
           </div>
         )}
 
-        {/* Verification Report Generator Modal */}
-        {showReportGenerator && (
-          <VerificationReportGenerator
+        {/* Comprehensive Verification Form Modal */}
+        {showComprehensiveVerificationForm && (
+          <ComprehensiveVerificationForm
             project={project}
-            onClose={() => setShowReportGenerator(false)}
+            onSubmit={handleOfficerVerificationSubmit}
+            onClose={() => setShowComprehensiveVerificationForm(false)}
           />
         )}
       </div>

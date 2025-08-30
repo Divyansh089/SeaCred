@@ -3,9 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import { addProject, getOfficersByArea, getOfficersByJurisdiction, getAllOfficers, assignOfficerToProject, getProjectCount } from "@/lib/credit";
+import { uploadMultipleFilesToIPFS } from "@/utils/ipfs";
 import {
   MapPinIcon,
   PhotoIcon,
@@ -36,64 +39,56 @@ interface ProjectFormData {
   landAreaUnit: string;
   documents: File[];
   landImages: File[];
-  contactPerson: {
-    name: string;
-    email: string;
-    phone: string;
-  };
-  technicalDetails: {
-    methodology: string;
-    baselineScenario: string;
-    projectScenario: string;
-    monitoringPlan: string;
-  };
 }
 
 interface Officer {
-  id: string;
+  address: string;
   name: string;
-  email: string;
+  designation: string;
+  area: string;
   jurisdiction: string;
-  specialization: string[];
 }
 
+// This will be replaced with real officer data from the contract
 const mockOfficers: Officer[] = [
   {
-    id: "1",
+    address: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
     name: "Rajesh Kumar",
-    email: "rajesh.kumar@seacred.gov.in",
+    designation: "Area Officer",
+    area: "Maharashtra",
     jurisdiction: "Maharashtra",
-    specialization: ["renewable_energy", "forestry"],
   },
   {
-    id: "2",
+    address: "0x1234567890123456789012345678901234567890",
     name: "Priya Sharma",
-    email: "priya.sharma@seacred.gov.in",
+    designation: "Area Officer",
+    area: "Kerala",
     jurisdiction: "Kerala",
-    specialization: ["forestry", "methane_capture"],
   },
   {
-    id: "3",
+    address: "0x9876543210987654321098765432109876543210",
     name: "Amit Patel",
-    email: "amit.patel@seacred.gov.in",
+    designation: "Area Officer",
+    area: "Gujarat",
     jurisdiction: "Gujarat",
-    specialization: ["renewable_energy", "energy_efficiency"],
   },
   {
-    id: "4",
+    address: "0xabcdef1234567890abcdef1234567890abcdef12",
     name: "Sneha Reddy",
-    email: "sneha.reddy@seacred.gov.in",
+    designation: "Area Officer",
+    area: "Punjab",
     jurisdiction: "Punjab",
-    specialization: ["methane_capture", "other"],
   },
 ];
 
 export default function NewProjectPage() {
   const router = useRouter();
   const { addNotification } = useNotifications();
+  const { user, walletAddress } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [assignedOfficer, setAssignedOfficer] = useState<Officer | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -119,17 +114,6 @@ export default function NewProjectPage() {
     landAreaUnit: "hectares",
     documents: [],
     landImages: [],
-    contactPerson: {
-      name: "",
-      email: "",
-      phone: "",
-    },
-    technicalDetails: {
-      methodology: "",
-      baselineScenario: "",
-      projectScenario: "",
-      monitoringPlan: "",
-    },
   });
 
   // Credit calculation based on project type and land area
@@ -193,25 +177,7 @@ export default function NewProjectPage() {
     }));
   };
 
-  const handleContactChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      contactPerson: {
-        ...prev.contactPerson,
-        [field]: value,
-      },
-    }));
-  };
 
-  const handleTechnicalChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      technicalDetails: {
-        ...prev.technicalDetails,
-        [field]: value,
-      },
-    }));
-  };
 
   const handleFileUpload = (
     files: FileList | null,
@@ -233,21 +199,72 @@ export default function NewProjectPage() {
     }));
   };
 
-  const assignOfficer = () => {
-    // Simple logic to assign officer based on state
-    const availableOfficers = mockOfficers.filter(
-      (officer) => officer.jurisdiction === formData.location.state
-    );
-
-    if (availableOfficers.length > 0) {
-      // Assign based on project type specialization
-      const specializedOfficer = availableOfficers.find((officer) =>
-        officer.specialization.includes(formData.projectType)
+  const assignOfficer = async () => {
+    try {
+      // Try multiple approaches to find an officer
+      let officerAddresses = [];
+      
+      // 1. Try to get officers by city
+      try {
+        officerAddresses = await getOfficersByArea(formData.location.city);
+      } catch (error) {
+        console.log("No officers found for city:", formData.location.city);
+      }
+      
+      // 2. If no officers found by city, try by state
+      if (officerAddresses.length === 0) {
+        try {
+          officerAddresses = await getOfficersByJurisdiction(formData.location.state);
+        } catch (error) {
+          console.log("No officers found for state:", formData.location.state);
+        }
+      }
+      
+      // 3. If still no officers, try to get all officers
+      if (officerAddresses.length === 0) {
+        try {
+          officerAddresses = await getAllOfficers();
+        } catch (error) {
+          console.log("No officers found at all");
+        }
+      }
+      
+      if (officerAddresses.length > 0) {
+        // Use the first available officer
+        const officerAddress = officerAddresses[0];
+        
+        // Create officer object with available data
+        const officer: Officer = {
+          address: officerAddress,
+          name: "Area Officer", // You would need to fetch officer details
+          designation: "Area Officer",
+          area: formData.location.city,
+          jurisdiction: formData.location.state,
+        };
+        
+        setAssignedOfficer(officer);
+        console.log("Officer assigned:", officer);
+      } else {
+        // Fallback to mock officers
+        const availableOfficers = mockOfficers.filter(
+          (officer) => officer.jurisdiction === formData.location.state
+        );
+        
+        if (availableOfficers.length > 0) {
+          setAssignedOfficer(availableOfficers[0]);
+        } else {
+          // Final fallback to any officer
+          setAssignedOfficer(mockOfficers[0]);
+        }
+        console.log("Using mock officer as fallback");
+      }
+    } catch (error) {
+      console.error("Error assigning officer:", error);
+      // Fallback to mock officers
+      const availableOfficers = mockOfficers.filter(
+        (officer) => officer.jurisdiction === formData.location.state
       );
-      setAssignedOfficer(specializedOfficer || availableOfficers[0]);
-    } else {
-      // Fallback to any officer
-      setAssignedOfficer(mockOfficers[0]);
+      setAssignedOfficer(availableOfficers[0] || mockOfficers[0]);
     }
   };
 
@@ -267,22 +284,16 @@ export default function NewProjectPage() {
           formData.estimatedCredits > 0
         );
       case 3:
-        return !!(
-          formData.contactPerson.name &&
-          formData.contactPerson.email &&
-          formData.contactPerson.phone
-        );
-      case 4:
         return formData.landImages.length > 0;
       default:
         return true;
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (validateStep(currentStep)) {
       if (currentStep === 2) {
-        assignOfficer();
+        await assignOfficer();
       }
       setCurrentStep(currentStep + 1);
     } else {
@@ -299,11 +310,91 @@ export default function NewProjectPage() {
   };
 
   const handleSubmit = async () => {
+    if (!walletAddress) {
+      addNotification({
+        type: "error",
+        title: "Wallet not connected",
+        message: "Please connect your wallet to create a project.",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
+    setUploadProgress(0);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Upload files to IPFS
+      setUploadProgress(10);
+      const allFiles = [...formData.landImages, ...formData.documents];
+      
+      if (allFiles.length === 0) {
+        throw new Error("Please upload at least one land image");
+      }
+      
+      const ipfsHashes = await uploadMultipleFilesToIPFS(allFiles);
+      setUploadProgress(50);
+
+      // Create metadata JSON and upload to IPFS
+      const metadata = {
+        landImages: formData.landImages.map((_, index) => ({
+          name: formData.landImages[index].name,
+          ipfsHash: ipfsHashes[index]
+        })),
+        supportingDocuments: formData.documents.map((_, index) => ({
+          name: formData.documents[index].name,
+          ipfsHash: ipfsHashes[formData.landImages.length + index]
+        })),
+        uploadedAt: new Date().toISOString()
+      };
+
+      // Upload metadata to IPFS
+      const metadataHash = await uploadToIPFS(metadata);
+      setUploadProgress(80);
+
+      // Convert dates to timestamps
+      const startTimestamp = Math.floor(new Date(formData.startDate).getTime() / 1000);
+      const endTimestamp = Math.floor(new Date(formData.endDate).getTime() / 1000);
+
+      // Convert land area to acres if needed
+      let landAreaInAcres = formData.landArea;
+      if (formData.landAreaUnit === "hectares") {
+        landAreaInAcres = Math.round(formData.landArea * 2.47105);
+      } else if (formData.landAreaUnit === "sq_km") {
+        landAreaInAcres = Math.round(formData.landArea * 247.105);
+      }
+
+      // Add project to blockchain
+      await addProject(
+        formData.name,
+        formData.description,
+        formData.projectType,
+        startTimestamp,
+        endTimestamp,
+        formData.location.address,
+        formData.location.city,
+        formData.location.state,
+        landAreaInAcres,
+        formData.estimatedCredits,
+        metadataHash
+      );
+
+      // Automatically assign an officer to the project
+      if (assignedOfficer) {
+        try {
+          // Get the project count to know the new project ID
+          const projectCount = await getProjectCount();
+          const newProjectId = projectCount;
+          
+          // Assign the officer to the project
+          await assignOfficerToProject(newProjectId, assignedOfficer.address);
+          console.log(`Officer ${assignedOfficer.address} assigned to project ${newProjectId}`);
+        } catch (error) {
+          console.error("Failed to assign officer to project:", error);
+          // Don't fail the entire process if officer assignment fails
+        }
+      }
+
+      setUploadProgress(100);
 
       addNotification({
         type: "success",
@@ -313,24 +404,60 @@ export default function NewProjectPage() {
       });
 
       router.push("/projects");
-    } catch {
+    } catch (error) {
+      console.error("Project creation failed:", error);
       addNotification({
         type: "error",
         title: "Error",
-        message: "Failed to create project. Please try again.",
+        message: error instanceof Error ? error.message : "Failed to create project. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
+  const uploadToIPFS = async (data: any) => {
+    const response = await fetch('https://api.pinata.cloud/pinning/pinJSONToIPFS', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'pinata_api_key': process.env.NEXT_PUBLIC_PINATA_API_KEY || '',
+        'pinata_secret_api_key': process.env.NEXT_PUBLIC_PINATA_SECRET_KEY || '',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to upload metadata to IPFS: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result.IpfsHash;
+  };
+
   const steps = [
-    { id: 1, name: "Basic Information", icon: DocumentTextIcon },
-    { id: 2, name: "Location & Details", icon: MapPinIcon },
-    { id: 3, name: "Contact Information", icon: UserIcon },
-    { id: 4, name: "Land Images", icon: PhotoIcon },
-    { id: 5, name: "Review & Submit", icon: BuildingOfficeIcon },
+    { id: 1, name: "Project Details", icon: DocumentTextIcon },
+    { id: 2, name: "Location & Area", icon: MapPinIcon },
+    { id: 3, name: "Upload Files", icon: PhotoIcon },
+    { id: 4, name: "Review & Submit", icon: BuildingOfficeIcon },
   ];
+
+  // Check if user is authenticated
+  if (!user || !walletAddress) {
+    return (
+      <DashboardLayout>
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-gray-900">Authentication Required</h2>
+            <p className="mt-2 text-gray-600">
+              Please connect your wallet to create a new project.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -369,26 +496,26 @@ export default function NewProjectPage() {
                   } relative`}
                 >
                   <div className="flex items-center">
-                    <div
-                      className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                        step.id <= currentStep
-                          ? "bg-green-600 text-white"
-                          : "bg-gray-200 text-gray-500"
-                      }`}
-                    >
+                                         <div
+                       className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                         step.id <= currentStep
+                           ? "bg-green-600 text-white"
+                           : "bg-gray-300 text-gray-600"
+                       }`}
+                     >
                       <step.icon className="h-4 w-4" />
                     </div>
                     {stepIdx !== steps.length - 1 && (
-                      <div
-                        className={`absolute top-4 left-8 -ml-px h-0.5 w-full ${
-                          step.id < currentStep ? "bg-green-600" : "bg-gray-200"
-                        }`}
-                      />
+                                           <div
+                       className={`absolute top-4 left-8 -ml-px h-0.5 w-full ${
+                         step.id < currentStep ? "bg-green-600" : "bg-gray-300"
+                       }`}
+                     />
                     )}
                   </div>
-                  <span className="absolute -bottom-6 left-0 text-xs font-medium text-gray-500">
-                    {step.name}
-                  </span>
+                                     <span className="absolute -bottom-6 left-0 text-xs font-semibold text-gray-600">
+                     {step.name}
+                   </span>
                 </li>
               ))}
             </ol>
@@ -533,12 +660,44 @@ export default function NewProjectPage() {
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
                     >
                       <option value="">Select state</option>
-                      <option value="Maharashtra">Maharashtra</option>
-                      <option value="Kerala">Kerala</option>
+                      {/* States */}
+                      <option value="Andhra Pradesh">Andhra Pradesh</option>
+                      <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                      <option value="Assam">Assam</option>
+                      <option value="Bihar">Bihar</option>
+                      <option value="Chhattisgarh">Chhattisgarh</option>
+                      <option value="Goa">Goa</option>
                       <option value="Gujarat">Gujarat</option>
-                      <option value="Punjab">Punjab</option>
-                      <option value="Tamil Nadu">Tamil Nadu</option>
+                      <option value="Haryana">Haryana</option>
+                      <option value="Himachal Pradesh">Himachal Pradesh</option>
+                      <option value="Jharkhand">Jharkhand</option>
                       <option value="Karnataka">Karnataka</option>
+                      <option value="Kerala">Kerala</option>
+                      <option value="Madhya Pradesh">Madhya Pradesh</option>
+                      <option value="Maharashtra">Maharashtra</option>
+                      <option value="Manipur">Manipur</option>
+                      <option value="Meghalaya">Meghalaya</option>
+                      <option value="Mizoram">Mizoram</option>
+                      <option value="Nagaland">Nagaland</option>
+                      <option value="Odisha">Odisha</option>
+                      <option value="Punjab">Punjab</option>
+                      <option value="Rajasthan">Rajasthan</option>
+                      <option value="Sikkim">Sikkim</option>
+                      <option value="Tamil Nadu">Tamil Nadu</option>
+                      <option value="Telangana">Telangana</option>
+                      <option value="Tripura">Tripura</option>
+                      <option value="Uttar Pradesh">Uttar Pradesh</option>
+                      <option value="Uttarakhand">Uttarakhand</option>
+                      <option value="West Bengal">West Bengal</option>
+                      {/* Union Territories */}
+                      <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+                      <option value="Chandigarh">Chandigarh</option>
+                      <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
+                      <option value="Delhi">Delhi</option>
+                      <option value="Jammu and Kashmir">Jammu and Kashmir</option>
+                      <option value="Ladakh">Ladakh</option>
+                      <option value="Lakshadweep">Lakshadweep</option>
+                      <option value="Puducherry">Puducherry</option>
                     </select>
                   </div>
                   <div>
@@ -614,130 +773,9 @@ export default function NewProjectPage() {
               </div>
             )}
 
+
+
             {currentStep === 3 && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Contact Information
-                </h2>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Contact Person Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.contactPerson.name}
-                    onChange={(e) =>
-                      handleContactChange("name", e.target.value)
-                    }
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                    placeholder="Full name"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Email Address *
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.contactPerson.email}
-                      onChange={(e) =>
-                        handleContactChange("email", e.target.value)
-                      }
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                      placeholder="email@example.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Phone Number *
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.contactPerson.phone}
-                      onChange={(e) =>
-                        handleContactChange("phone", e.target.value)
-                      }
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                      placeholder="+91 1234567890"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-md font-medium text-gray-900">
-                    Technical Details
-                  </h3>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Methodology
-                    </label>
-                    <textarea
-                      value={formData.technicalDetails.methodology}
-                      onChange={(e) =>
-                        handleTechnicalChange("methodology", e.target.value)
-                      }
-                      rows={3}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                      placeholder="Describe the methodology used for carbon reduction"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Baseline Scenario
-                    </label>
-                    <textarea
-                      value={formData.technicalDetails.baselineScenario}
-                      onChange={(e) =>
-                        handleTechnicalChange(
-                          "baselineScenario",
-                          e.target.value
-                        )
-                      }
-                      rows={3}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                      placeholder="Describe the baseline scenario"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Project Scenario
-                    </label>
-                    <textarea
-                      value={formData.technicalDetails.projectScenario}
-                      onChange={(e) =>
-                        handleTechnicalChange("projectScenario", e.target.value)
-                      }
-                      rows={3}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                      placeholder="Describe the project scenario"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Monitoring Plan
-                    </label>
-                    <textarea
-                      value={formData.technicalDetails.monitoringPlan}
-                      onChange={(e) =>
-                        handleTechnicalChange("monitoringPlan", e.target.value)
-                      }
-                      rows={3}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                      placeholder="Describe the monitoring plan"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {currentStep === 4 && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold text-gray-900">
                   Land Images & Documents
@@ -871,16 +909,16 @@ export default function NewProjectPage() {
               </div>
             )}
 
-            {currentStep === 5 && (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Review & Submit
-                </h2>
+                         {currentStep === 4 && (
+               <div className="space-y-8">
+                 <h2 className="text-xl font-semibold text-gray-900 pb-2">
+                   Review & Submit
+                 </h2>
 
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-md font-medium text-gray-900 mb-4">
-                    Project Summary
-                  </h3>
+                                 <div className="bg-gray-50 rounded-lg p-8">
+                   <h3 className="text-lg font-medium text-gray-900 mb-6">
+                     Project Summary
+                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -936,7 +974,7 @@ export default function NewProjectPage() {
                     </div>
                   </div>
 
-                  <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                                     <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
                       <h4 className="font-medium text-gray-700">
                         Project Details
@@ -960,31 +998,7 @@ export default function NewProjectPage() {
                       </dl>
                     </div>
 
-                    <div>
-                      <h4 className="font-medium text-gray-700">
-                        Contact Person
-                      </h4>
-                      <dl className="mt-2 space-y-1">
-                        <div>
-                          <dt className="text-sm text-gray-500">Name:</dt>
-                          <dd className="text-sm text-gray-900">
-                            {formData.contactPerson.name}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-sm text-gray-500">Email:</dt>
-                          <dd className="text-sm text-gray-900">
-                            {formData.contactPerson.email}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-sm text-gray-500">Phone:</dt>
-                          <dd className="text-sm text-gray-900">
-                            {formData.contactPerson.phone}
-                          </dd>
-                        </div>
-                      </dl>
-                    </div>
+
 
                     <div>
                       <h4 className="font-medium text-gray-700">Files</h4>
@@ -1008,11 +1022,11 @@ export default function NewProjectPage() {
                   </div>
                 </div>
 
-                {assignedOfficer && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                    <h3 className="text-md font-medium text-green-900 mb-4">
-                      Assigned Officer
-                    </h3>
+                                 {assignedOfficer && (
+                   <div className="bg-green-50 border border-green-200 rounded-lg p-8">
+                     <h3 className="text-lg font-medium text-green-900 mb-6">
+                       Assigned Officer
+                     </h3>
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
                         <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
@@ -1024,10 +1038,16 @@ export default function NewProjectPage() {
                           {assignedOfficer.name}
                         </h4>
                         <p className="text-sm text-green-700">
-                          {assignedOfficer.email}
+                          {assignedOfficer.designation}
+                        </p>
+                        <p className="text-sm text-green-600">
+                          Area: {assignedOfficer.area}
                         </p>
                         <p className="text-sm text-green-600">
                           Jurisdiction: {assignedOfficer.jurisdiction}
+                        </p>
+                        <p className="text-xs text-green-500 font-mono">
+                          {assignedOfficer.address}
                         </p>
                       </div>
                     </div>
@@ -1047,7 +1067,7 @@ export default function NewProjectPage() {
               </Button>
 
               <div className="flex gap-3">
-                {currentStep < 5 ? (
+                {currentStep < 4 ? (
                   <Button onClick={handleNext}>Next</Button>
                 ) : (
                   <Button
@@ -1055,7 +1075,14 @@ export default function NewProjectPage() {
                     disabled={isSubmitting}
                     className="min-w-[120px]"
                   >
-                    {isSubmitting ? "Creating..." : "Create Project"}
+                    {isSubmitting ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Creating... {uploadProgress}%</span>
+                      </div>
+                    ) : (
+                      "Create Project"
+                    )}
                   </Button>
                 )}
               </div>

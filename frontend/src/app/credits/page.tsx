@@ -1,154 +1,196 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import MetaMaskConnect from "@/components/ui/MetaMaskConnect";
 import ExportReportButton from "@/components/ui/ExportReportButton";
+import SendTokenModal from "@/components/ui/SendTokenModal";
+import CreditDistributionWorkflow from "@/components/ui/CreditDistributionWorkflow";
+import { getDashboard, getAllProjects, getUser } from "@/lib/credit";
 import {
   CurrencyDollarIcon,
   WalletIcon,
-  UserIcon,
-  BuildingOfficeIcon,
   ArrowTrendingUpIcon,
   DocumentTextIcon,
   CheckCircleIcon,
+  UserIcon,
 } from "@heroicons/react/24/outline";
-import { CarbonCredit, CreditDistribution } from "@/types";
+import { TrendingUp as TrendingUpIcon, Users, Send } from "lucide-react";
 
-const mockCredits: CarbonCredit[] = [
-  {
-    id: "1",
-    projectId: "1",
-    serialNumber: "CC-2024-001-0001",
-    vintage: 2024,
-    amount: 1000,
-    status: "available",
-    issuedAt: new Date("2024-08-20"),
-  },
-  {
-    id: "2",
-    projectId: "1",
-    serialNumber: "CC-2024-001-0002",
-    vintage: 2024,
-    amount: 500,
-    status: "distributed",
-    issuedAt: new Date("2024-08-18"),
-    distributedAt: new Date("2024-08-22"),
-  },
-  {
-    id: "3",
-    projectId: "2",
-    serialNumber: "CC-2024-002-0001",
-    vintage: 2024,
-    amount: 2000,
-    status: "available",
-    issuedAt: new Date("2024-08-15"),
-  },
-];
-
-const mockDistributions: CreditDistribution[] = [
-  {
-    id: "dist-1",
-    projectId: "1",
-    officerId: "officer-1",
-    authorityId: "authority-1",
-    totalCredits: 1000,
-    officerWallet: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-    authorityWallet: "0x1234567890123456789012345678901234567890",
-    distribution: {
-      officerShare: 10,
-      authorityShare: 80,
-      platformFee: 10,
-    },
-    status: "distributed",
-    blockchainTransactionId: "tx-1",
-    createdAt: new Date("2024-08-20"),
-    distributedAt: new Date("2024-08-20"),
-  },
-  {
-    id: "dist-2",
-    projectId: "2",
-    officerId: "officer-2",
-    authorityId: "authority-2",
-    totalCredits: 2000,
-    officerWallet: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-    authorityWallet: "0x9876543210987654321098765432109876543210",
-    distribution: {
-      officerShare: 15,
-      authorityShare: 75,
-      platformFee: 10,
-    },
-    status: "distributed",
-    blockchainTransactionId: "tx-2",
-    createdAt: new Date("2024-08-15"),
-    distributedAt: new Date("2024-08-15"),
-  },
-];
+interface UserInfo {
+  walletAddress: string;
+  firstName: string;
+  lastName: string;
+  district: string;
+  projectCount: number;
+  totalCreditsReceived: number;
+}
 
 export default function CreditsPage() {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("distribution");
+  const { user, walletAddress } = useAuth();
+  const [contractData, setContractData] = useState<{
+    mintedCumulative: string;
+    burnedCumulative: string;
+    officerReceived: string;
+    officerDistributed: string;
+    userReceived: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isSendTokenModalOpen, setIsSendTokenModalOpen] = useState(false);
+  const [assignedUsers, setAssignedUsers] = useState<UserInfo[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Calculate totals based on user role
-  const getTotalCredits = () => {
-    if (user?.role === "officer") {
-      return mockDistributions
-        .filter((d) => d.officerId === user.id)
-        .reduce(
-          (sum, dist) =>
-            sum + (dist.totalCredits * dist.distribution.officerShare) / 100,
-          0
-        );
-    } else if (user?.role === "project_authority") {
-      return mockDistributions
-        .filter((d) => d.authorityId === user.id)
-        .reduce(
-          (sum, dist) =>
-            sum + (dist.totalCredits * dist.distribution.authorityShare) / 100,
-          0
-        );
+  // Fetch contract data
+  useEffect(() => {
+    const fetchContractData = async () => {
+      try {
+        setLoading(true);
+        const data = await getDashboard(walletAddress || undefined);
+        setContractData(data);
+      } catch (error) {
+        console.error("Error fetching contract data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (walletAddress) {
+      fetchContractData();
+    } else {
+      setLoading(false);
     }
-    return mockCredits.reduce((sum, credit) => sum + credit.amount, 0);
+  }, [walletAddress]);
+
+  // Fetch users assigned to this officer
+  useEffect(() => {
+    const fetchAssignedUsers = async () => {
+      if (user?.role !== "officer" || !walletAddress) {
+        console.log("Not fetching assigned users - user role:", user?.role, "wallet:", walletAddress);
+        return;
+      }
+
+      setLoadingUsers(true);
+      try {
+        const allProjects = await getAllProjects();
+        console.log("All projects:", allProjects);
+        
+        // Filter to show only projects created by the current user
+        const userProjects = allProjects.filter(project => 
+          project.owner.toLowerCase() === walletAddress.toLowerCase()
+        );
+        
+        // Get projects assigned to this officer (case-insensitive comparison)
+        const officerProjects = userProjects.filter(project => 
+          project.assignedOfficer.toLowerCase() === walletAddress.toLowerCase()
+        );
+        console.log("Officer projects:", officerProjects);
+        console.log("Officer wallet address:", walletAddress);
+
+        // Get unique user addresses from officer's projects
+        const userAddresses = [...new Set(officerProjects.map(project => project.owner))];
+        console.log("Unique user addresses:", userAddresses);
+        
+        // Fetch user details for each address
+        const usersWithDetails: UserInfo[] = [];
+        
+        for (const address of userAddresses) {
+          try {
+            const userDetails = await getUser(address);
+            console.log(`User details for ${address}:`, userDetails);
+            
+            const userProjectCount = officerProjects.filter(project => project.owner === address).length;
+            // Calculate total credits for this user (this would come from contract in real implementation)
+            // For now, we'll use a mock calculation based on project count
+            const totalCreditsReceived = userProjectCount * 100; // Mock calculation - in real implementation this would come from userReceived mapping
+            
+            if (userDetails.isRegistered) {
+              usersWithDetails.push({
+                walletAddress: address,
+                firstName: userDetails.firstName,
+                lastName: userDetails.lastName,
+                district: userDetails.district,
+                projectCount: userProjectCount,
+                totalCreditsReceived
+              });
+            } else {
+              usersWithDetails.push({
+                walletAddress: address,
+                firstName: "Unregistered",
+                lastName: "User",
+                district: "Unknown",
+                projectCount: userProjectCount,
+                totalCreditsReceived
+              });
+            }
+          } catch (error) {
+            console.error(`Error fetching user details for ${address}:`, error);
+            // Include unregistered users with basic info
+            const userProjectCount = officerProjects.filter(project => project.owner === address).length;
+            const totalCreditsReceived = userProjectCount * 100;
+            
+            usersWithDetails.push({
+              walletAddress: address,
+              firstName: "Unregistered",
+              lastName: "User",
+              district: "Unknown",
+              projectCount: userProjectCount,
+              totalCreditsReceived
+            });
+          }
+        }
+        
+        console.log("Final users with details:", usersWithDetails);
+        setAssignedUsers(usersWithDetails);
+      } catch (error) {
+        console.error("Error fetching assigned users:", error);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    fetchAssignedUsers();
+  }, [user?.role, walletAddress]);
+
+  // Calculate totals based on user role and contract data
+  const getTotalCredits = () => {
+    if (loading) return "Loading...";
+    
+    if (user?.role === "admin") {
+      return contractData?.mintedCumulative || "0";
+    } else if (user?.role === "officer") {
+      return contractData?.officerReceived || "0";
+    } else if (user?.role === "user") {
+      return contractData?.userReceived || "0";
+    }
+    
+    return "0";
   };
 
   const getAvailableCredits = () => {
-    if (user?.role === "officer") {
-      return mockDistributions
-        .filter((d) => d.officerId === user.id)
-        .reduce(
-          (sum, dist) =>
-            sum + (dist.totalCredits * dist.distribution.officerShare) / 100,
-          0
-        );
-    } else if (user?.role === "project_authority") {
-      return mockDistributions
-        .filter((d) => d.authorityId === user.id)
-        .reduce(
-          (sum, dist) =>
-            sum + (dist.totalCredits * dist.distribution.authorityShare) / 100,
-          0
-        );
+    if (loading) return "Loading...";
+    
+    if (user?.role === "admin") {
+      const minted = parseFloat(contractData?.mintedCumulative || "0");
+      const burned = parseFloat(contractData?.burnedCumulative || "0");
+      return (minted - burned).toFixed(2);
+    } else if (user?.role === "officer") {
+      const received = parseFloat(contractData?.officerReceived || "0");
+      const distributed = parseFloat(contractData?.officerDistributed || "0");
+      return (received - distributed).toFixed(2);
+    } else if (user?.role === "user") {
+      return contractData?.userReceived || "0";
     }
-    return mockCredits
-      .filter((c) => c.status === "available")
-      .reduce((sum, credit) => sum + credit.amount, 0);
+    
+    return "0";
   };
 
   const getWalletAddress = () => {
-    if (user?.role === "officer") {
-      return "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6";
-    } else if (user?.role === "project_authority") {
-      return "0x1234567890123456789012345678901234567890";
-    }
-    return "0x0000000000000000000000000000000000000000";
+    return walletAddress || "0x0000000000000000000000000000000000000000";
   };
 
-  const tabs = [
-    { id: "distribution", name: "Credit Distribution", icon: WalletIcon },
-    { id: "wallet", name: "Wallet Management", icon: UserIcon },
-    { id: "authority", name: "Authority Credits", icon: BuildingOfficeIcon },
-  ];
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
 
   return (
     <DashboardLayout>
@@ -161,27 +203,30 @@ export default function CreditsPage() {
             </h1>
             <p className="mt-2 text-sm text-gray-700">
               {user?.role === "officer" &&
-                "Manage your verification credits and wallet"}
-              {user?.role === "project_authority" &&
-                "Track your project credits and distributions"}
+                "Manage your verification credits and distribute tokens to users"}
               {user?.role === "admin" &&
                 "Monitor credit distributions and blockchain operations"}
+              {user?.role === "user" &&
+                "View your carbon credit balance and transaction history"}
             </p>
           </div>
-          <div className="mt-4 sm:mt-0 sm:ml-4">
+          <div className="mt-4 sm:mt-0 sm:ml-4 flex space-x-3">
+            {user?.role === "officer" && (
+              <button
+                type="button"
+                onClick={() => setIsSendTokenModalOpen(true)}
+                className="inline-flex items-center gap-x-1.5 rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+              >
+                                 <Send className="-ml-0.5 h-5 w-5" aria-hidden="true" />
+                Send Tokens
+              </button>
+            )}
             <ExportReportButton
               data={{
                 totalCredits: getTotalCredits(),
                 availableCredits: getAvailableCredits(),
                 walletAddress: getWalletAddress(),
-                distributions: mockDistributions.filter((dist) => {
-                  if (user?.role === "officer")
-                    return dist.officerId === user.id;
-                  if (user?.role === "project_authority")
-                    return dist.authorityId === user.id;
-                  return true; // Admin sees all
-                }),
-                credits: mockCredits,
+                assignedUsers: assignedUsers,
               }}
               reportType="Carbon Credits Report"
               variant="dropdown"
@@ -203,7 +248,7 @@ export default function CreditsPage() {
                       Total Credits
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {getTotalCredits().toLocaleString("en-US")} tCO2e
+                      {loading ? "Loading..." : `${parseFloat(getTotalCredits()).toLocaleString("en-US")} tCO2e`}
                     </dd>
                   </dl>
                 </div>
@@ -223,7 +268,7 @@ export default function CreditsPage() {
                       Available Credits
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {getAvailableCredits().toLocaleString("en-US")} tCO2e
+                      {loading ? "Loading..." : `${parseFloat(getAvailableCredits()).toLocaleString("en-US")} tCO2e`}
                     </dd>
                   </dl>
                 </div>
@@ -240,12 +285,13 @@ export default function CreditsPage() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      {user?.role === "officer"
-                        ? "Officer Share"
-                        : "Authority Share"}
+                      {user?.role === "admin" ? "Burned Credits" : 
+                       user?.role === "officer" ? "Officer Share" : "Authority Share"}
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {user?.role === "officer" ? "10%" : "80%"}
+                      {user?.role === "admin" ? 
+                        (loading ? "Loading..." : `${parseFloat(contractData?.burnedCumulative || "0").toLocaleString("en-US")} tCO2e`) :
+                        user?.role === "officer" ? "10%" : "80%"}
                     </dd>
                   </dl>
                 </div>
@@ -254,255 +300,131 @@ export default function CreditsPage() {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Credit Distribution Content */}
         <div className="mt-8">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`whitespace-nowrap border-b-2 py-2 px-1 text-sm font-medium flex items-center space-x-2 ${
-                      activeTab === tab.id
-                        ? "border-green-500 text-green-600"
-                        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{tab.name}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-        </div>
+          {user?.role === "officer" ? (
+            // Officer view - show workflow and users
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Credit Distribution Workflow */}
+              <CreditDistributionWorkflow />
+              
+              {/* Assigned Users */}
+              <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                <div className="px-4 py-5 sm:px-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    Assigned Users
+                  </h3>
+                  <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                    Users assigned to you for token distribution
+                  </p>
+                </div>
 
-        {/* Credit Distribution Tab */}
-        {activeTab === "distribution" && (
-          <div className="mt-6">
+                <div className="border-t border-gray-200">
+                  {loadingUsers ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+                      <p className="mt-2 text-gray-600">Loading assigned users...</p>
+                    </div>
+                  ) : assignedUsers.length > 0 ? (
+                    <ul role="list" className="divide-y divide-gray-200">
+                      {assignedUsers.map((userInfo) => (
+                        <li key={userInfo.walletAddress}>
+                          <div className="px-4 py-4 sm:px-6">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center">
+                                <UserIcon className="h-5 w-5 text-green-600 mr-3" />
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {userInfo.firstName} {userInfo.lastName}
+                                    {userInfo.firstName === "Unregistered" && (
+                                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                        Unregistered
+                                      </span>
+                                    )}
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    {userInfo.district} • {userInfo.projectCount} project(s)
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-4">
+                                <div className="text-right">
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {userInfo.totalCreditsReceived.toLocaleString("en-US")} tCO2e
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    Total received
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => setIsSendTokenModalOpen(true)}
+                                  className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                                  disabled={userInfo.firstName === "Unregistered"}
+                                >
+                                  <Send className="h-4 w-4 mr-1" />
+                                  {userInfo.firstName === "Unregistered" ? "User Not Registered" : "Send Tokens"}
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="mt-2 sm:flex sm:justify-between">
+                              <div className="sm:flex">
+                                <p className="flex items-center text-sm text-gray-500">
+                                  <WalletIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+                                  {formatAddress(userInfo.walletAddress)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">No users assigned to you</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {user?.role === "officer" 
+                          ? "Users will appear here once they have projects assigned to you" 
+                          : "Only verification officers can see assigned users. Please log in as an officer account to view assigned users."
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Admin/User view - show distribution history
             <div className="bg-white shadow overflow-hidden sm:rounded-md">
-              <ul role="list" className="divide-y divide-gray-200">
-                {mockDistributions
-                  .filter((dist) => {
-                    if (user?.role === "officer")
-                      return dist.officerId === user.id;
-                    if (user?.role === "project_authority")
-                      return dist.authorityId === user.id;
-                    return true; // Admin sees all
-                  })
-                  .map((distribution) => (
-                    <li key={distribution.id}>
-                      <div className="px-4 py-4 sm:px-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <CheckCircleIcon className="h-5 w-5 text-green-600 mr-3" />
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                Project {distribution.projectId}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {distribution.distributedAt?.toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                              <p className="text-sm font-medium text-gray-900">
-                                {distribution.totalCredits.toLocaleString(
-                                  "en-US"
-                                )}{" "}
-                                tCO2e
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {user?.role === "officer" &&
-                                  `${distribution.distribution.officerShare}% share`}
-                                {user?.role === "project_authority" &&
-                                  `${distribution.distribution.authorityShare}% share`}
-                                {user?.role === "admin" && "Total distributed"}
-                              </p>
-                            </div>
-                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
-                              {distribution.status}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="mt-2 sm:flex sm:justify-between">
-                          <div className="sm:flex">
-                            <p className="flex items-center text-sm text-gray-500">
-                              <WalletIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                              {distribution.officerWallet.substring(0, 20)}...
-                            </p>
-                            <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                              <DocumentTextIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                              TX: {distribution.blockchainTransactionId}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {/* Wallet Management Tab */}
-        {activeTab === "wallet" && (
-          <div className="mt-6">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Wallet Information
-              </h3>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Wallet Address
-                  </label>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={getWalletAddress()}
-                      readOnly
-                      className="flex-1 rounded-md border-gray-300 bg-gray-50 shadow-sm font-mono text-sm"
-                    />
-                    <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
-                      Copy
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">
-                      Credit Balance
-                    </h4>
-                    <p className="text-2xl font-bold text-green-600">
-                      {getAvailableCredits().toLocaleString("en-US")} tCO2e
-                    </p>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">
-                      Share Percentage
-                    </h4>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {user?.role === "officer" ? "10%" : "80%"}
-                    </p>
-                  </div>
-                </div>
-
-                {user?.role === "officer" && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-blue-900 mb-2">
-                      Officer Benefits
-                    </h4>
-                    <ul className="text-sm text-blue-700 space-y-1">
-                      <li>• 10% share of verified project credits</li>
-                      <li>• Direct distribution to your wallet</li>
-                      <li>• Transparent blockchain transactions</li>
-                      <li>• Immediate availability after verification</li>
-                    </ul>
-                  </div>
-                )}
-
-                {user?.role === "project_authority" && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-green-900 mb-2">
-                      Authority Benefits
-                    </h4>
-                    <ul className="text-sm text-green-700 space-y-1">
-                      <li>• 80% share of project credits</li>
-                      <li>• Secure wallet storage</li>
-                      <li>• Verified and audited credits</li>
-                      <li>• Credits stored securely on blockchain</li>
-                    </ul>
-                  </div>
-                )}
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                  Credit Distribution
+                </h3>
+                <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                  Credit distribution history and statistics
+                </p>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Authority Credits Tab */}
-        {activeTab === "authority" && (
-          <div className="mt-6">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Authority Credit Management
-              </h3>
-
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">
-                      Total Authority Credits
-                    </h4>
-                    <p className="text-2xl font-bold text-green-600">
-                      {mockDistributions
-                        .filter((d) =>
-                          user?.role === "project_authority"
-                            ? d.authorityId === user.id
-                            : true
-                        )
-                        .reduce(
-                          (sum, dist) =>
-                            sum +
-                            (dist.totalCredits *
-                              dist.distribution.authorityShare) /
-                              100,
-                          0
-                        )
-                        .toLocaleString("en-US")}{" "}
-                      tCO2e
-                    </p>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">
-                      Available Credits
-                    </h4>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {getAvailableCredits().toLocaleString("en-US")} tCO2e
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-yellow-900 mb-2">
-                    Authority Credit Information
-                  </h4>
-                  <ul className="text-sm text-yellow-700 space-y-1">
-                    <li>
-                      • Credits are distributed after successful verification
-                    </li>
-                    <li>• 80% of total project credits go to authority</li>
-                    <li>• Credits are stored securely on blockchain</li>
-                    <li>• All transactions are transparent and auditable</li>
-                    <li>• Credits are verified and audited for quality</li>
-                  </ul>
+              <div className="border-t border-gray-200">
+                <div className="text-center py-8">
+                  <CheckCircleIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">Credit distribution history</p>
+                  <p className="text-sm text-gray-500 mt-1">Distribution records will appear here</p>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* MetaMask Connection */}
-        <div className="mt-8">
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Blockchain Wallet Connection
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Connect your MetaMask wallet to receive and manage carbon credits
-              on the blockchain.
-            </p>
-            <MetaMaskConnect />
-          </div>
+          )}
         </div>
+
+        {/* Send Token Modal */}
+        <SendTokenModal
+          isOpen={isSendTokenModalOpen}
+          onClose={() => setIsSendTokenModalOpen(false)}
+          onSuccess={() => {
+            // Refresh the page or update data
+            window.location.reload();
+          }}
+        />
       </div>
     </DashboardLayout>
   );

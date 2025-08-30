@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import ExportReportButton from "@/components/ui/ExportReportButton";
 import Badge from "@/components/ui/Badge";
+import { getAllProjects, getUserProjects, getOfficerAssignedProjects } from "@/lib/credit";
 import {
   MapPinIcon,
   CalendarIcon,
@@ -83,29 +84,68 @@ const mockProjects: CarbonProject[] = [
 ];
 
 export default function ProjectsPage() {
-  const { user } = useAuth();
+  const { user, walletAddress } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredProjects = mockProjects.filter((project) => {
+  // Fetch projects from contract
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        let allProjects = [];
+        
+        // Fetch projects based on user role
+        if (user?.role === "admin") {
+          // Admin sees all projects
+          allProjects = await getAllProjects();
+        } else if (user?.role === "officer" && walletAddress) {
+          // Officer sees only projects assigned to them
+          allProjects = await getOfficerAssignedProjects(walletAddress);
+        } else if (user?.role === "project_authority" && walletAddress) {
+          // Project authority sees their own projects
+          const userProjectIds = await getUserProjects(walletAddress);
+          const allProjectsData = await getAllProjects();
+          allProjects = allProjectsData.filter(project => 
+            userProjectIds.includes(project.id)
+          );
+        } else if (walletAddress) {
+          // Regular users see projects they created
+          const allProjectsData = await getAllProjects();
+          allProjects = allProjectsData.filter(project => 
+            project.owner.toLowerCase() === walletAddress.toLowerCase()
+          );
+        }
+        
+        console.log(`Fetched ${allProjects.length} projects for ${user?.role} user`);
+        setProjects(allProjects);
+      } catch (error) {
+        console.error("Error fetching projects:", error);
+        // Fallback to mock data if contract fails
+        setProjects(mockProjects);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (walletAddress) {
+      fetchProjects();
+    } else {
+      setLoading(false);
+    }
+  }, [walletAddress, user?.role]);
+
+  const filteredProjects = projects.filter((project) => {
     const matchesSearch =
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.location.toLowerCase().includes(searchTerm.toLowerCase());
+      `${project.city}, ${project.state}`.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
-      selectedStatus === "all" || project.status === selectedStatus;
+      selectedStatus === "all" || (project.isActive ? "active" : "pending") === selectedStatus;
     const matchesType =
       selectedType === "all" || project.projectType === selectedType;
-
-    // Project authorities only see their own projects
-    if (user?.role === "project_authority") {
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesType &&
-        project.projectAuthorityId === user.id
-      );
-    }
 
     return matchesSearch && matchesStatus && matchesType;
   });
@@ -117,11 +157,14 @@ export default function ProjectsPage() {
         <div className="sm:flex sm:items-center sm:justify-between">
           <div className="sm:flex-auto">
             <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
-              Carbon Credit Projects
+              {user?.role === "officer" ? "My Assigned Projects" : 
+               user?.role === "admin" ? "All Carbon Credit Projects" :
+               "Carbon Credit Projects"}
             </h1>
             <p className="mt-2 text-sm text-gray-700">
-              A list of all carbon credit projects including their status,
-              location, and credit information.
+              {user?.role === "officer" ? "Projects assigned to you for verification and monitoring." :
+               user?.role === "admin" ? "A list of all carbon credit projects including their status, location, and credit information." :
+               "A list of carbon credit projects including their status, location, and credit information."}
             </p>
           </div>
           <div className="mt-4 sm:mt-0 sm:flex space-x-3">
@@ -150,7 +193,7 @@ export default function ProjectsPage() {
               reportType="Projects Report"
               variant="dropdown"
             />
-            {user?.role === "project_authority" && (
+            {(user?.role === "project_authority" || user?.role === "user") && (
               <a
                 href="/projects/new"
                 className="inline-flex items-center gap-x-1.5 rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
@@ -158,6 +201,30 @@ export default function ProjectsPage() {
                 <PlusIcon className="-ml-0.5 h-5 w-5" aria-hidden="true" />
                 New Project
               </a>
+            )}
+            {user?.role === "officer" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  disabled={loading}
+                  className="inline-flex items-center gap-x-1.5 rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+                <a
+                  href="/verifications"
+                  className="inline-flex items-center gap-x-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                >
+                  <svg className="-ml-0.5 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Verification Dashboard
+                </a>
+              </>
             )}
           </div>
         </div>
@@ -210,8 +277,19 @@ export default function ProjectsPage() {
           </div>
         </div>
 
+        {/* Loading State */}
+        {loading && (
+          <div className="mt-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">
+              {user?.role === "officer" ? "Loading your assigned projects..." : "Loading projects..."}
+            </p>
+          </div>
+        )}
+
         {/* Projects Grid */}
-        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {!loading && (
+          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filteredProjects.map((project) => (
             <div
               key={project.id}
@@ -237,13 +315,13 @@ export default function ProjectsPage() {
 
               <div className="mt-4 flex items-center text-sm text-gray-500">
                 <MapPinIcon className="mr-1.5 h-4 w-4 flex-shrink-0" />
-                {project.location}
+                {project.city}, {project.state}
               </div>
 
               <div className="mt-2 flex items-center text-sm text-gray-500">
                 <CalendarIcon className="mr-1.5 h-4 w-4 flex-shrink-0" />
                 Created{" "}
-                {project.createdAt.toLocaleDateString("en-US", {
+                {new Date(project.createdAt * 1000).toLocaleDateString("en-US", {
                   year: "numeric",
                   month: "short",
                   day: "numeric",
@@ -257,41 +335,66 @@ export default function ProjectsPage() {
                   </Badge>
                   <Badge
                     variant={
-                      project.status === "active"
+                      project.isActive
                         ? "success"
-                        : project.status === "pending"
-                        ? "warning"
-                        : project.status === "rejected"
-                        ? "error"
-                        : "default"
+                        : "warning"
                     }
                   >
-                    {project.status}
+                    {project.isActive ? "active" : "pending"}
                   </Badge>
+                  {user?.role === "officer" && (
+                    <Badge
+                      variant={
+                        project.verificationStatus === 0 ? "warning" :
+                        project.verificationStatus === 1 ? "info" :
+                        project.verificationStatus === 2 ? "success" :
+                        "error"
+                      }
+                    >
+                      {project.verificationStatus === 0 ? "pending" :
+                       project.verificationStatus === 1 ? "in progress" :
+                       project.verificationStatus === 2 ? "approved" :
+                       "rejected"}
+                    </Badge>
+                  )}
                 </div>
               </div>
 
               <div className="mt-4 border-t border-gray-200 pt-4">
                 <div className="flex items-center justify-between text-sm">
                   <div>
-                    <span className="text-gray-500">Available Credits:</span>
+                    <span className="text-gray-500">Estimated Credits:</span>
                     <span className="ml-1 font-medium text-gray-900">
-                      {project.availableCredits.toLocaleString("en-US")}
+                      {project.estimatedCredits.toLocaleString("en-US")}
                     </span>
                   </div>
                   <div className="flex items-center text-green-600">
                     <CurrencyDollarIcon className="h-4 w-4" />
                     <span className="ml-1 font-medium">
-                      {project.pricePerCredit}
+                      {project.landArea} acres
                     </span>
                   </div>
                 </div>
+                {user?.role === "officer" && project.verificationStatus === 0 && (
+                  <div className="mt-3">
+                    <a
+                      href={`/verifications/new?projectId=${project.id}`}
+                      className="inline-flex items-center gap-x-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Start Verification
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
+        )}
 
-        {filteredProjects.length === 0 && (
+        {!loading && filteredProjects.length === 0 && (
           <div className="mt-12 text-center">
             <svg
               className="mx-auto h-12 w-12 text-gray-400"
@@ -310,8 +413,22 @@ export default function ProjectsPage() {
               No projects found
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              Try adjusting your search criteria or create a new project.
+              {user?.role === "officer" 
+                ? "No projects have been assigned to you yet. Contact an administrator to get assigned to projects."
+                : "Try adjusting your search criteria or create a new project."
+              }
             </p>
+            {(user?.role === "project_authority" || user?.role === "user") && (
+              <div className="mt-6">
+                <a
+                  href="/projects/new"
+                  className="inline-flex items-center gap-x-1.5 rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+                >
+                  <PlusIcon className="-ml-0.5 h-5 w-5" aria-hidden="true" />
+                  Create New Project
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>

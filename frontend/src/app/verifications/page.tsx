@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import ExportReportButton from "@/components/ui/ExportReportButton";
+import { getAllProjects, assignOfficerToProject, getOfficerAssignedProjects } from "@/lib/credit";
 import {
   ClockIcon,
   CheckCircleIcon,
@@ -13,7 +14,7 @@ import {
   CalendarIcon,
   EyeIcon,
 } from "@heroicons/react/24/outline";
-import { CarbonProject, VerificationReport, ProjectWorkflow } from "@/types";
+import { CarbonProject, VerificationReport, ProjectWorkflow, getVerificationStatusText, getVerificationStatusColor } from "@/types";
 import WorkflowManager from "@/components/verification/WorkflowManager";
 import VerificationReportForm from "@/components/verification/VerificationReportForm";
 import AIVerificationPanel from "@/components/ai/AIVerificationPanel";
@@ -123,15 +124,83 @@ const verificationStatusColors = {
 };
 
 export default function VerificationsPage() {
-  const { user } = useAuth();
+  const { user, walletAddress } = useAuth();
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedProject, setSelectedProject] = useState<CarbonProject | null>(
-    null
-  );
+  const [selectedProject, setSelectedProject] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("projects");
   const [showVerificationDetails, setShowVerificationDetails] = useState(false);
-  const [selectedProjectForDetails, setSelectedProjectForDetails] =
-    useState<CarbonProject | null>(null);
+  const [selectedProjectForDetails, setSelectedProjectForDetails] = useState<any>(null);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch projects from contract
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        let allProjects = [];
+        
+        console.log("User role:", user?.role);
+        console.log("Wallet address:", walletAddress);
+        
+        // Fetch projects based on user role
+        if (user?.role === "officer" && walletAddress) {
+          // Officers see projects assigned to them
+          allProjects = await getOfficerAssignedProjects(walletAddress);
+          console.log("Officer assigned projects:", allProjects);
+        } else if (user?.role === "admin") {
+          // Admins see all projects
+          allProjects = await getAllProjects();
+        } else {
+          // Other roles see no projects
+          allProjects = [];
+        }
+        
+        setProjects(allProjects);
+      } catch (error) {
+        console.error("Error fetching projects:", error);
+        setProjects([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (walletAddress) {
+      fetchProjects();
+    } else {
+      setLoading(false);
+    }
+  }, [walletAddress, user?.role]);
+
+  // Calculate dynamic status counts
+  const getStatusCounts = () => {
+    const counts = {
+      pending: 0,
+      inProgress: 0,
+      verified: 0,
+      rejected: 0
+    };
+
+    projects.forEach(project => {
+      // Convert BigInt to number if needed
+      const statusNumber = Number(project.verificationStatus);
+      
+      // Map verification status from contract to our status categories
+      if (statusNumber === 0) { // PENDING
+        counts.pending++;
+      } else if (statusNumber === 1) { // IN_PROGRESS
+        counts.inProgress++;
+      } else if (statusNumber === 2) { // APPROVED
+        counts.verified++;
+      } else if (statusNumber === 3) { // REJECTED
+        counts.rejected++;
+      }
+    });
+
+    return counts;
+  };
+
+  const statusCounts = getStatusCounts();
 
   // Redirect if user doesn't have access
   if (user?.role === "project_authority") {
@@ -149,19 +218,22 @@ export default function VerificationsPage() {
     );
   }
 
-  const filteredProjects = mockProjects.filter((project) => {
-    const matchesStatus =
-      selectedStatus === "all" || project.verificationStatus === selectedStatus;
-
-    // Officers only see projects assigned to them or unassigned
-    if (user?.role === "officer") {
-      return (
-        matchesStatus &&
-        (project.assignedOfficerId === user.id || !project.assignedOfficerId)
-      );
-    }
-
-    return matchesStatus;
+  const filteredProjects = projects.filter((project) => {
+    if (selectedStatus === "all") return true;
+    
+    // Convert BigInt to number if needed
+    const statusNumber = Number(project.verificationStatus);
+    
+    // Map verification status to filter options
+    const projectStatus = (() => {
+      if (statusNumber === 0) return "pending";
+      if (statusNumber === 1) return "inProgress";
+      if (statusNumber === 2) return "verified";
+      if (statusNumber === 3) return "rejected";
+      return "pending";
+    })();
+    
+    return projectStatus === selectedStatus;
   });
 
   const handleAssignToMe = (projectId: string) => {
@@ -194,6 +266,27 @@ export default function VerificationsPage() {
     setSelectedProjectForDetails(null);
   };
 
+  const handleAssignOfficerToProject = async (projectId: number) => {
+    if (!walletAddress) {
+      alert("Please connect your wallet first");
+      return;
+    }
+    
+    try {
+      const result = await assignOfficerToProject(projectId, walletAddress);
+      if (result.success) {
+        alert(`Successfully assigned officer ${walletAddress} to project ${projectId}`);
+        // Refresh the projects list
+        window.location.reload();
+      } else {
+        alert("Failed to assign officer to project");
+      }
+    } catch (error) {
+      console.error("Error assigning officer:", error);
+      alert("Error assigning officer to project");
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="px-4 sm:px-6 lg:px-8">
@@ -208,35 +301,15 @@ export default function VerificationsPage() {
               accuracy.
             </p>
           </div>
-          <div className="mt-4 sm:mt-0 sm:ml-4 flex space-x-3">
-            <button
-              onClick={() => {
-                if (filteredProjects.length > 0) {
-                  handleViewVerificationDetails(filteredProjects[0]);
-                }
-              }}
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-            >
-              <EyeIcon className="h-4 w-4 mr-2" />
-              View Verification Details
-            </button>
-            <ExportReportButton
+                     <div className="mt-4 sm:mt-0 sm:ml-4 flex space-x-3">
+             <ExportReportButton
               data={{
                 projects: filteredProjects,
                 stats: {
-                  pending: mockProjects.filter(
-                    (p) => p.verificationStatus === "pending"
-                  ).length,
-                  inProgress: mockProjects.filter(
-                    (p) =>
-                      p.verificationStatus === "pending" && p.assignedOfficerId
-                  ).length,
-                  completed: mockProjects.filter(
-                    (p) => p.verificationStatus === "verified"
-                  ).length,
-                  rejected: mockProjects.filter(
-                    (p) => p.verificationStatus === "rejected"
-                  ).length,
+                  pending: statusCounts.pending,
+                  inProgress: statusCounts.inProgress,
+                  completed: statusCounts.verified,
+                  rejected: statusCounts.rejected,
                 },
                 userRole: user?.role,
               }}
@@ -260,11 +333,7 @@ export default function VerificationsPage() {
                       Pending
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {
-                        mockProjects.filter(
-                          (p) => p.verificationStatus === "pending"
-                        ).length
-                      }
+                      {statusCounts.pending}
                     </dd>
                   </dl>
                 </div>
@@ -284,13 +353,7 @@ export default function VerificationsPage() {
                       In Progress
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {
-                        mockProjects.filter(
-                          (p) =>
-                            p.assignedOfficerId &&
-                            p.verificationStatus === "pending"
-                        ).length
-                      }
+                      {statusCounts.inProgress}
                     </dd>
                   </dl>
                 </div>
@@ -310,11 +373,7 @@ export default function VerificationsPage() {
                       Verified
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {
-                        mockProjects.filter(
-                          (p) => p.verificationStatus === "verified"
-                        ).length
-                      }
+                      {statusCounts.verified}
                     </dd>
                   </dl>
                 </div>
@@ -334,11 +393,7 @@ export default function VerificationsPage() {
                       Rejected
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {
-                        mockProjects.filter(
-                          (p) => p.verificationStatus === "rejected"
-                        ).length
-                      }
+                      {statusCounts.rejected}
                     </dd>
                   </dl>
                 </div>
@@ -399,8 +454,18 @@ export default function VerificationsPage() {
           </div>
         </div>
 
+
+
+        {/* Loading State */}
+        {loading && (
+          <div className="mt-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading projects...</p>
+          </div>
+        )}
+
         {/* Projects Tab */}
-        {activeTab === "projects" && (
+        {!loading && activeTab === "projects" && (
           <>
             {/* Filters */}
             <div className="mt-6">
@@ -411,7 +476,8 @@ export default function VerificationsPage() {
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
-                <option value="verified">Verified</option>
+                <option value="inProgress">In Progress</option>
+                <option value="verified">Approved</option>
                 <option value="rejected">Rejected</option>
               </select>
             </div>
@@ -430,92 +496,57 @@ export default function VerificationsPage() {
                               {project.name}
                             </p>
                             <p className="text-sm text-gray-500">
-                              {project.location} •{" "}
+                              {project.city}, {project.state} •{" "}
                               {project.projectType.replace("_", " ")}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-3">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              verificationStatusColors[
-                                project.verificationStatus
-                              ]
-                            }`}
-                          >
-                            {project.verificationStatus}
-                          </span>
-                          <button
-                            onClick={() =>
-                              handleViewVerificationDetails(project)
-                            }
-                            className="inline-flex items-center text-sm text-blue-600 hover:text-blue-500"
-                          >
-                            <EyeIcon className="h-4 w-4 mr-1" />
-                            Details
-                          </button>
-                          <button
-                            onClick={() => setSelectedProject(project)}
-                            className="inline-flex items-center text-sm text-green-600 hover:text-green-500"
-                          >
-                            <EyeIcon className="h-4 w-4 mr-1" />
-                            Workflow
-                          </button>
-                        </div>
+                                                 <div className="flex items-center space-x-3">
+                           <span
+                             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getVerificationStatusColor(project.verificationStatus)}`}
+                           >
+                             {getVerificationStatusText(project.verificationStatus)}
+                           </span>
+                           <button
+                             onClick={() =>
+                               handleViewVerificationDetails(project)
+                             }
+                             className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                           >
+                             <EyeIcon className="h-4 w-4 mr-1" />
+                             View
+                           </button>
+                         </div>
                       </div>
 
                       <div className="mt-2 sm:flex sm:justify-between">
                         <div className="sm:flex">
                           <p className="flex items-center text-sm text-gray-500">
                             <UserIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                            {project.assignedOfficerId
-                              ? "Assigned"
+                            {project.assignedOfficer && project.assignedOfficer !== "0x0000000000000000000000000000000000000000"
+                              ? `Assigned to ${project.assignedOfficer.slice(0, 6)}...${project.assignedOfficer.slice(-4)}`
                               : "Unassigned"}
                           </p>
                           <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
                             <CalendarIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
                             Created{" "}
-                            {project.createdAt.toLocaleDateString("en-US")}
+                            {new Date(project.createdAt * 1000).toLocaleDateString("en-US")}
                           </p>
                         </div>
                         <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
                           <DocumentTextIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                          {project.documents.length} documents
+                          {project.ipfsUrl ? "Documents uploaded" : "No documents"}
                         </div>
                       </div>
 
-                      {/* Action buttons for officers */}
-                      {user?.role === "officer" && (
-                        <div className="mt-3 flex space-x-3">
-                          {project.verificationStatus === "pending" &&
-                            !project.assignedOfficerId && (
-                              <button
-                                onClick={() => handleAssignToMe(project.id)}
-                                className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-                              >
-                                Assign to Me
-                              </button>
-                            )}
-                          {project.assignedOfficerId === user.id && (
-                            <button
-                              onClick={() => {
-                                setSelectedProject(project);
-                                setActiveTab("workflow");
-                              }}
-                              className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                            >
-                              Start Verification
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      
                     </div>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {filteredProjects.length === 0 && (
+            {!loading && filteredProjects.length === 0 && (
               <div className="mt-12 text-center">
                 <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">

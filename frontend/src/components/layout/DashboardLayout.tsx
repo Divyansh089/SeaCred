@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { getOfficer } from "@/lib/credit";
 import {
   HomeIcon,
   DocumentTextIcon,
@@ -15,16 +16,16 @@ import {
   Bars3Icon,
   XMarkIcon,
   BellIcon,
+  WalletIcon,
 } from "@heroicons/react/24/outline";
 import { Leaf } from "lucide-react";
-import MetaMaskConnect from "@/components/ui/MetaMaskConnect";
 import Avatar from "@/components/ui/Avatar";
 
 interface NavItem {
   name: string;
   href: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  roles?: ("admin" | "officer" | "project_authority")[];
+  roles?: ("admin" | "officer" | "user")[];
 }
 
 const navigation: NavItem[] = [
@@ -47,8 +48,45 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const [officerDetails, setOfficerDetails] = useState<any>(null);
+  const [isLoadingOfficer, setIsLoadingOfficer] = useState(false);
+  const { user, walletAddress, disconnectWallet } = useAuth();
   const pathname = usePathname();
+
+  // Fetch officer details if user is an officer
+  useEffect(() => {
+    const fetchOfficerDetails = async () => {
+      if (user?.role === "officer" && walletAddress) {
+        setIsLoadingOfficer(true);
+        try {
+          const details = await getOfficer(walletAddress);
+          setOfficerDetails(details);
+        } catch (error) {
+          console.error("Failed to fetch officer details:", error);
+        } finally {
+          setIsLoadingOfficer(false);
+        }
+      }
+    };
+    fetchOfficerDetails();
+  }, [user?.role, walletAddress]);
+
+  const getDisplayName = () => {
+    if (user?.role === "officer") {
+      if (officerDetails && officerDetails.name) {
+        return officerDetails.name;
+      } else {
+        return walletAddress ? `Officer ${formatAddress(walletAddress)}` : "Officer";
+      }
+    }
+    if (user?.role === "admin") {
+      return "Administrator";
+    }
+    if (user?.role === "project_authority") {
+      return "Project Authority";
+    }
+    return user?.name || "User";
+  };
 
   const filteredNavigation = useMemo(
     () =>
@@ -58,9 +96,9 @@ export default function DashboardLayout({
     [user?.role]
   );
 
-  const handleLogout = useCallback(() => {
-    logout();
-  }, [logout]);
+  const handleDisconnect = useCallback(() => {
+    disconnectWallet();
+  }, [disconnectWallet]);
 
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
@@ -70,7 +108,9 @@ export default function DashboardLayout({
     setSidebarOpen(false);
   }, []);
 
-
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -208,8 +248,13 @@ export default function DashboardLayout({
               </div>
             </div>
             <div className="ml-4 flex items-center md:ml-6 space-x-4">
-              {/* MetaMask Connection */}
-              <MetaMaskConnect variant="badge" />
+              {/* Wallet Connection Status */}
+              <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm">
+                <WalletIcon className="h-4 w-4" />
+                <span className="font-medium">
+                  {walletAddress ? formatAddress(walletAddress) : "Not Connected"}
+                </span>
+              </div>
 
               <button
                 type="button"
@@ -224,23 +269,23 @@ export default function DashboardLayout({
                   <div className="flex-shrink-0">
                     <Avatar
                       src={user?.avatar}
-                      alt={user?.name || "User"}
+                      alt={getDisplayName()}
                       size="md"
                     />
                   </div>
                   <div className="hidden md:block">
                     <div className="text-sm font-medium text-gray-700">
-                      {user?.name}
+                      {getDisplayName()}
                     </div>
                     <div className="text-xs text-gray-500 capitalize">
                       {user?.role?.replace("_", " ")}
                     </div>
                   </div>
                   <button
-                    onClick={handleLogout}
+                    onClick={handleDisconnect}
                     className="ml-2 text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200"
                   >
-                    Sign out
+                    Disconnect
                   </button>
                 </div>
               </div>

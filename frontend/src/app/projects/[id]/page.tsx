@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Badge from "@/components/ui/Badge";
+import { getProject } from "@/lib/credit";
 import {
   MapPinIcon,
   CalendarIcon,
@@ -87,19 +88,48 @@ const mockProjects: CarbonProject[] = [
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
-  const [project, setProject] = useState<CarbonProject | null>(null);
+  const { user, walletAddress } = useAuth();
+  const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const projectId = params.id as string;
-    const foundProject = mockProjects.find(p => p.id === projectId);
-    
-    if (foundProject) {
-      setProject(foundProject);
+    const fetchProject = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const projectId = parseInt(params.id as string);
+        if (isNaN(projectId)) {
+          setError("Invalid project ID");
+          return;
+        }
+
+        const projectData = await getProject(projectId);
+        setProject(projectData);
+      } catch (err) {
+        console.error("Error fetching project:", err);
+        setError("Failed to load project");
+        
+        // Fallback to mock data if contract fails
+        const projectId = params.id as string;
+        const foundProject = mockProjects.find(p => p.id === projectId);
+        if (foundProject) {
+          setProject(foundProject);
+          setError(null);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (walletAddress) {
+      fetchProject();
+    } else {
+      setLoading(false);
+      setError("Wallet not connected");
     }
-    setLoading(false);
-  }, [params.id]);
+  }, [params.id, walletAddress]);
 
   if (loading) {
     return (
@@ -109,6 +139,28 @@ export default function ProjectDetailPage() {
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
             <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
             <div className="h-64 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-gray-900">Error Loading Project</h2>
+            <p className="mt-2 text-gray-600">
+              {error}
+            </p>
+            <button
+              onClick={() => router.push("/projects")}
+              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+            >
+              <ArrowLeftIcon className="h-4 w-4 mr-2" />
+              Back to Projects
+            </button>
           </div>
         </div>
       </DashboardLayout>
@@ -187,7 +239,14 @@ export default function ProjectDetailPage() {
                     <dt className="text-sm font-medium text-gray-500">Location</dt>
                     <dd className="mt-1 flex items-center text-sm text-gray-900">
                       <MapPinIcon className="h-4 w-4 mr-2 text-gray-400" />
-                      {project.location}
+                      {project.city}, {project.state}
+                    </dd>
+                  </div>
+                  
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Address</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {project.projectAddress}
                     </dd>
                   </div>
                   
@@ -205,16 +264,12 @@ export default function ProjectDetailPage() {
                     <dd className="mt-1">
                       <Badge
                         variant={
-                          project.status === "active"
+                          project.isActive
                             ? "success"
-                            : project.status === "pending"
-                            ? "warning"
-                            : project.status === "rejected"
-                            ? "error"
-                            : "default"
+                            : "warning"
                         }
                       >
-                        {project.status}
+                        {project.isActive ? "active" : "pending"}
                       </Badge>
                     </dd>
                   </div>
@@ -223,7 +278,7 @@ export default function ProjectDetailPage() {
                     <dt className="text-sm font-medium text-gray-500">Created</dt>
                     <dd className="mt-1 flex items-center text-sm text-gray-900">
                       <CalendarIcon className="h-4 w-4 mr-2 text-gray-400" />
-                      {project.createdAt.toLocaleDateString("en-US", {
+                      {new Date(project.createdAt * 1000).toLocaleDateString("en-US", {
                         year: "numeric",
                         month: "long",
                         day: "numeric",
@@ -235,44 +290,44 @@ export default function ProjectDetailPage() {
 
               {/* Credits Info */}
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-3">Carbon Credits</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-3">Project Details</h3>
                 <dl className="space-y-3">
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Total Credits</dt>
+                    <dt className="text-sm font-medium text-gray-500">Estimated Credits</dt>
                     <dd className="mt-1 text-sm text-gray-900">
-                      {project.totalCredits.toLocaleString('en-US')} tCO2e
+                      {project.estimatedCredits.toLocaleString('en-US')} tCO2e
                     </dd>
                   </div>
                   
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Available Credits</dt>
+                    <dt className="text-sm font-medium text-gray-500">Land Area</dt>
                     <dd className="mt-1 text-sm text-gray-900">
-                      {project.availableCredits.toLocaleString('en-US')} tCO2e
+                      {project.landArea} acres
                     </dd>
                   </div>
                   
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Price per Credit</dt>
-                    <dd className="mt-1 flex items-center text-sm text-gray-900">
-                      <CurrencyDollarIcon className="h-4 w-4 mr-1 text-gray-400" />
-                      {project.pricePerCredit}
+                    <dt className="text-sm font-medium text-gray-500">Project Period</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {new Date(project.startDate * 1000).toLocaleDateString('en-US')} - {new Date(project.endDate * 1000).toLocaleDateString('en-US')}
                     </dd>
                   </div>
                   
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Verification Status</dt>
-                    <dd className="mt-1">
-                      <Badge
-                        variant={
-                          project.verificationStatus === "verified"
-                            ? "success"
-                            : project.verificationStatus === "pending"
-                            ? "warning"
-                            : "error"
-                        }
-                      >
-                        {project.verificationStatus}
-                      </Badge>
+                    <dt className="text-sm font-medium text-gray-500">IPFS Documents</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {project.ipfsUrl ? (
+                        <a 
+                          href={`https://gateway.pinata.cloud/ipfs/${project.ipfsUrl}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-600 hover:text-green-500 underline"
+                        >
+                          View Documents
+                        </a>
+                      ) : (
+                        "No documents uploaded"
+                      )}
                     </dd>
                   </div>
                 </dl>
@@ -281,28 +336,47 @@ export default function ProjectDetailPage() {
 
             {/* Documents */}
             <div className="mt-8">
-              <h3 className="text-sm font-medium text-gray-500 mb-3">Documents</h3>
-              {project.documents && project.documents.length > 0 ? (
+              <h3 className="text-sm font-medium text-gray-500 mb-3">Project Documents</h3>
+              {project.ipfsUrl ? (
                 <div className="space-y-2">
-                  {project.documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center p-3 border border-gray-200 rounded-md">
-                      <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-3" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{doc.name}</p>
-                        <p className="text-xs text-gray-500">
-                          Uploaded {doc.uploadedAt.toLocaleDateString('en-US')}
-                        </p>
-                      </div>
-                      <button className="text-sm text-green-600 hover:text-green-500">
-                        View
-                      </button>
+                  <div className="flex items-center p-3 border border-gray-200 rounded-md">
+                    <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-3" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">Project Documents & Images</p>
+                      <p className="text-xs text-gray-500">
+                        Stored on IPFS
+                      </p>
                     </div>
-                  ))}
+                    <a 
+                      href={`https://gateway.pinata.cloud/ipfs/${project.ipfsUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-green-600 hover:text-green-500"
+                    >
+                      View
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <p className="text-sm text-gray-500">No documents uploaded yet.</p>
               )}
             </div>
+
+            {/* Assigned Officer */}
+            {project.assignedOfficer && project.assignedOfficer !== "0x0000000000000000000000000000000000000000" && (
+              <div className="mt-8">
+                <h3 className="text-sm font-medium text-gray-500 mb-3">Assigned Officer</h3>
+                <div className="flex items-center p-3 border border-gray-200 rounded-md">
+                  <UserIcon className="h-5 w-5 text-gray-400 mr-3" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">Area Officer</p>
+                    <p className="text-xs text-gray-500 font-mono">
+                      {project.assignedOfficer}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

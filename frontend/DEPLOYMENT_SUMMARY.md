@@ -1,59 +1,48 @@
 # Contract Deployment Summary
 
-## ✅ Deployment Successful!
+## BlueCarbonAdminTokenRestricted Contract
 
-The **BlueCarbonAdminTokenRestricted** contract has been successfully deployed to the **Holesky testnet**.
+### Latest Deployment (Most Recent)
+
+- **Contract Address**: `0x553B0C98D730611d141E905016bF1E33bC247A1b`
+- **Network**: Holesky Testnet
+- **Deployer**: `0xEa8315C53CC5C324e3F516d51bF91153aD94E40A`
+- **Transaction Hash**: `0x9b6392fb17cb5c988708c5fc117f3fc80a09278d506b2f29534aec5a8e44b5ff`
+- **Deployment Timestamp**: 1756482712 (Unix timestamp)
+- **Block Explorer**: https://holesky.etherscan.io/address/0x553B0C98D730611d141E905016bF1E33bC247A1b
 
 ### Contract Details
 
-- **Contract Address**: `0x9FE0F745f80eE2e28889d089bFCBD83B47d98751`
-- **Contract Name**: Blue Carbon Credit Token
-- **Contract Symbol**: BCC
+- **Name**: Blue Carbon Credit Token
+- **Symbol**: BCC
 - **Decimals**: 18
-- **Admin Address**: `0xEa8315C53CC5C324e3F516d51bF91153aD94E40A`
+- **Admin**: `0xEa8315C53CC5C324e3F516d51bF91153aD94E40A`
 
-### Deployment Information
+### Previous Deployments
 
-- **Network**: Holesky Testnet
-- **Transaction Hash**: `0x701cd7ffb630033feea3349b8ae909643171fd0ed8f005242622c48608814e09`
-- **Deployer Balance**: 18.25 ETH (sufficient for deployment)
+1. **Address**: `0x495A0FEcD36a0da74e0DEA4a88517bcEdfF26b01`
+   - **Transaction Hash**: `0x2f412c23a708b06b98bd36803170b835f32649071219588f93b303e6b6ed80b2`
+   - **Timestamp**: 1756470029
 
 ### Contract Features
 
-✅ **Admin Controls**:
+- ERC-20 token with admin controls
+- Officer role management
+- User registration system
+- Project management
+- Verification workflow
+- IPFS-based report approval
+- Token distribution controls
 
-- Pause/unpause contract
-- Set officer roles
-- Approve and mint tokens by IPFS CID
-- Burn tokens (supply reduction)
-- Transfer tokens to officers
+### Usage
 
-✅ **Officer Controls**:
+The contract is now ready for use in the SeaCred application. The frontend should be configured to use the latest contract address: `0x553B0C98D730611d141E905016bF1E33bC247A1b`
 
-- Can only transfer tokens to regular users
-- Cannot transfer to other admins or officers
+### Environment Configuration
 
-✅ **Security Features**:
+Make sure your `.env.local` file contains:
 
-- Role-based access control
-- Double-mint prevention for same IPFS CID
-- Comprehensive ledger tracking
-
-### Next Steps
-
-1. **Verify Contract**: Use the verification script to verify on Etherscan
-2. **Test Functions**: Test admin and officer functions
-3. **Set Officers**: Grant officer roles to authorized addresses
-4. **Start Minting**: Begin minting tokens for verified reports
-
-### View on Etherscan
-
-- **Holesky Etherscan**: https://holesky.etherscan.io/address/0x9FE0F745f80eE2e28889d089bFCBD83B47d98751
-
-### Environment Variables
-
-Copy the contents of `deployment-info.env` to your `.env.local` file for frontend integration.
-
----
-
-_Deployment completed on Holesky testnet_
+```
+CONTRACT_ADDRESS=0x553B0C98D730611d141E905016bF1E33bC247A1b
+ADMIN_ADDRESS=0xEa8315C53CC5C324e3F516d51bF91153aD94E40A
+```

@@ -1,92 +1,130 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { getAllProjects } from "@/lib/credit";
+import { getVerificationStatusText, getVerificationStatusColor } from "@/types";
+
 export default function TestPage() {
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [approvedProjects, setApprovedProjects] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        const allProjects = await getAllProjects();
+        console.log("Test page - All projects:", allProjects);
+        setProjects(allProjects);
+        
+        // Test approved projects filtering
+        const approved = allProjects.filter(project => 
+          Number(project.verificationStatus) === 2 // 2 = APPROVED
+        );
+        console.log("Test page - Approved projects:", approved);
+        setApprovedProjects(approved);
+      } catch (error) {
+        console.error("Test page - Error fetching projects:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  const getStatusCounts = () => {
+    const counts = {
+      pending: 0,
+      inProgress: 0,
+      verified: 0,
+      rejected: 0
+    };
+
+    projects.forEach(project => {
+      const statusNumber = Number(project.verificationStatus);
+      console.log(`Test page - Project ${project.id}: status = ${project.verificationStatus}, number = ${statusNumber}`);
+      
+      if (statusNumber === 0) counts.pending++;
+      else if (statusNumber === 1) counts.inProgress++;
+      else if (statusNumber === 2) counts.verified++;
+      else if (statusNumber === 3) counts.rejected++;
+    });
+
+    return counts;
+  };
+
+  const statusCounts = getStatusCounts();
+
+  if (loading) {
+    return <div className="p-8">Loading projects...</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-gray-900 mb-8">
-          Tailwind CSS Test
-        </h1>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Test Card 1 */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Basic Styling
-            </h2>
-            <p className="text-gray-600 mb-4">
-              This card tests basic Tailwind classes.
-            </p>
-            <button className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded">
-              Test Button
-            </button>
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6">Project Data Test</h1>
+      
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-4">Status Counts</h2>
+        <div className="grid grid-cols-4 gap-4">
+          <div className="bg-yellow-100 p-4 rounded">
+            <div className="font-bold">Pending: {statusCounts.pending}</div>
           </div>
-
-          {/* Test Card 2 */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-green-800 mb-4">
-              Green Theme
-            </h2>
-            <p className="text-green-700 mb-4">Testing green color variants.</p>
-            <div className="flex space-x-2">
-              <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
-                Green 100
-              </span>
-              <span className="bg-green-500 text-white px-2 py-1 rounded text-sm">
-                Green 500
-              </span>
-            </div>
+          <div className="bg-blue-100 p-4 rounded">
+            <div className="font-bold">In Progress: {statusCounts.inProgress}</div>
           </div>
-
-          {/* Test Card 3 */}
-          <div className="bg-gradient-to-r from-purple-400 to-pink-400 rounded-lg p-6 text-white">
-            <h2 className="text-xl font-semibold mb-4">Gradient Background</h2>
-            <p className="mb-4">
-              Testing gradient backgrounds and text colors.
-            </p>
-            <div className="bg-white bg-opacity-20 rounded p-2">
-              <span className="text-sm">Semi-transparent overlay</span>
-            </div>
+          <div className="bg-green-100 p-4 rounded">
+            <div className="font-bold">Verified: {statusCounts.verified}</div>
+          </div>
+          <div className="bg-red-100 p-4 rounded">
+            <div className="font-bold">Rejected: {statusCounts.rejected}</div>
           </div>
         </div>
+      </div>
 
-        {/* Responsive Test */}
-        <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Responsive Design Test
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-red-100 p-4 rounded text-center">
-              <span className="text-sm font-medium text-red-800">Mobile</span>
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-4">Approved Projects ({approvedProjects.length})</h2>
+        <div className="space-y-4">
+          {approvedProjects.map((project) => (
+            <div key={project.id} className="border p-4 rounded bg-green-50">
+              <div className="font-bold">{project.name}</div>
+              <div className="text-sm text-gray-600">
+                ID: {project.id} | 
+                Status: {project.verificationStatus} | 
+                Status Number: {Number(project.verificationStatus)} | 
+                Status Text: {getVerificationStatusText(project.verificationStatus)}
+              </div>
+              <div className="text-sm text-gray-600">
+                Assigned Officer: {project.assignedOfficer}
+              </div>
+              <div className="text-sm text-gray-600">
+                Created: {new Date(project.createdAt * 1000).toLocaleDateString()}
+              </div>
             </div>
-            <div className="bg-yellow-100 p-4 rounded text-center">
-              <span className="text-sm font-medium text-yellow-800">
-                Tablet
-              </span>
-            </div>
-            <div className="bg-green-100 p-4 rounded text-center">
-              <span className="text-sm font-medium text-green-800">
-                Desktop
-              </span>
-            </div>
-            <div className="bg-blue-100 p-4 rounded text-center">
-              <span className="text-sm font-medium text-blue-800">Large</span>
-            </div>
-          </div>
+          ))}
         </div>
+      </div>
 
-        {/* Custom CSS Test */}
-        <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Custom CSS Test
-          </h2>
-          <div className="space-y-4">
-            <div className="gradient-green p-4 rounded text-white">
-              <p>Custom gradient-green class</p>
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-4">All Projects ({projects.length})</h2>
+        <div className="space-y-4">
+          {projects.map((project) => (
+            <div key={project.id} className="border p-4 rounded">
+              <div className="font-bold">{project.name}</div>
+              <div className="text-sm text-gray-600">
+                ID: {project.id} | 
+                Status: {project.verificationStatus} | 
+                Status Number: {Number(project.verificationStatus)} | 
+                Status Text: {getVerificationStatusText(project.verificationStatus)}
+              </div>
+              <div className="text-sm text-gray-600">
+                Assigned Officer: {project.assignedOfficer}
+              </div>
+              <div className="text-sm text-gray-600">
+                Created: {new Date(project.createdAt * 1000).toLocaleDateString()}
+              </div>
             </div>
-            <div className="glass-effect p-4 rounded">
-              <p>Custom glass-effect class</p>
-            </div>
-            <button className="btn-primary">Custom btn-primary class</button>
-          </div>
+          ))}
         </div>
       </div>
     </div>
