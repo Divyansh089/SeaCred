@@ -13,7 +13,11 @@ import {
   ChevronRightIcon,
   PlusIcon,
   MagnifyingGlassIcon,
+  ChartBarIcon,
+  GlobeAltIcon,
+  BoltIcon,
 } from "@heroicons/react/24/outline";
+import { Leaf } from "lucide-react";
 import { CarbonProject } from "@/types";
 
 const mockProjects: CarbonProject[] = [
@@ -154,14 +158,14 @@ export default function ProjectsPage() {
     <DashboardLayout>
       <div className="px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="sm:flex sm:items-center sm:justify-between">
+        <div className="sm:flex sm:items-center sm:justify-between mb-8">
           <div className="sm:flex-auto">
-            <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+            <h1 className="text-3xl font-bold leading-7 text-gray-900 sm:truncate sm:text-4xl sm:tracking-tight">
               {user?.role === "officer" ? "My Assigned Projects" : 
                user?.role === "admin" ? "All Carbon Credit Projects" :
                "Carbon Credit Projects"}
             </h1>
-            <p className="mt-2 text-sm text-gray-700">
+            <p className="mt-3 text-lg text-gray-600">
               {user?.role === "officer" ? "Projects assigned to you for verification and monitoring." :
                user?.role === "admin" ? "A list of all carbon credit projects including their status, location, and credit information." :
                "A list of carbon credit projects including their status, location, and credit information."}
@@ -229,6 +233,63 @@ export default function ProjectsPage() {
           </div>
         </div>
 
+        {/* Statistics Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-6 border border-green-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Projects</p>
+                <p className="text-2xl font-bold text-gray-900">{filteredProjects.length}</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <GlobeAltIcon className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Active Projects</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {filteredProjects.filter(p => p.isActive).length}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <BoltIcon className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Pending Review</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {filteredProjects.filter(p => p.verificationStatus === 0).length}
+                </p>
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <ChartBarIcon className="h-6 w-6 text-yellow-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Credits</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {filteredProjects.reduce((sum, p) => sum + (p.estimatedCredits || 0), 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-lg">
+                                 <Leaf className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Filters */}
         <div className="mt-6 flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
@@ -289,15 +350,15 @@ export default function ProjectsPage() {
 
         {/* Projects Grid */}
         {!loading && (
-          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {filteredProjects.map((project) => (
             <div
               key={project.id}
-              className="group relative rounded-lg border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow"
+              className="group relative rounded-xl border border-gray-200 bg-white p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-green-600">
+                  <h3 className="text-xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">
                     <a
                       href={`/projects/${project.id}`}
                       className="focus:outline-none"
@@ -310,27 +371,39 @@ export default function ProjectsPage() {
                     {project.description}
                   </p>
                 </div>
-                <ChevronRightIcon className="h-5 w-5 text-gray-400 group-hover:text-green-600" />
+                <div className="p-2 bg-green-50 rounded-lg group-hover:bg-green-100 transition-colors">
+                  <ChevronRightIcon className="h-5 w-5 text-green-600" />
+                </div>
               </div>
 
-              <div className="mt-4 flex items-center text-sm text-gray-500">
-                <MapPinIcon className="mr-1.5 h-4 w-4 flex-shrink-0" />
-                {project.city}, {project.state}
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
+                  <MapPinIcon className="mr-2 h-4 w-4 flex-shrink-0 text-green-600" />
+                  <span className="font-medium">{project.city}, {project.state}</span>
+                </div>
+
+                <div className="flex items-center text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
+                  <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0 text-blue-600" />
+                  <span className="font-medium">
+                    Created {new Date(project.createdAt * 1000).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+
+                <div className="flex items-center text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
+                  <CurrencyDollarIcon className="mr-2 h-4 w-4 flex-shrink-0 text-purple-600" />
+                  <span className="font-medium">
+                    {project.estimatedCredits?.toLocaleString() || 0} Credits
+                  </span>
+                </div>
               </div>
 
-              <div className="mt-2 flex items-center text-sm text-gray-500">
-                <CalendarIcon className="mr-1.5 h-4 w-4 flex-shrink-0" />
-                Created{" "}
-                {new Date(project.createdAt * 1000).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                })}
-              </div>
-
-              <div className="mt-4 flex items-center justify-between">
+              <div className="flex items-center justify-between">
                 <div className="flex gap-2">
-                  <Badge variant="info">
+                  <Badge variant="info" className="px-3 py-1 text-xs font-medium">
                     {project.projectType.replace("_", " ")}
                   </Badge>
                   <Badge

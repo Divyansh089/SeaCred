@@ -15,6 +15,10 @@ import {
   UserGroupIcon,
   ShieldCheckIcon,
   ClipboardDocumentListIcon,
+  ChartBarIcon,
+  GlobeAltIcon,
+  LeafIcon,
+  BoltIcon,
 } from "@heroicons/react/24/outline";
 import { User } from "@/types";
 import { getAllUsers, getAllOfficers, getUser, getRoles, getOfficer } from "@/lib/credit";
@@ -236,12 +240,12 @@ export default function UsersPage() {
     <DashboardLayout>
       <div className="px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="sm:flex sm:items-center">
+        <div className="sm:flex sm:items-center mb-8">
           <div className="sm:flex-auto">
-            <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+            <h1 className="text-3xl font-bold leading-7 text-gray-900 sm:truncate sm:text-4xl sm:tracking-tight">
               User Management
             </h1>
-            <p className="mt-2 text-sm text-gray-700">
+            <p className="mt-3 text-lg text-gray-600">
               Manage user accounts, roles, and permissions across the platform.
             </p>
           </div>
@@ -279,83 +283,51 @@ export default function UsersPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-4">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <UserGroupIcon className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Users
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {userCounts.total}
-                    </dd>
-                  </dl>
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 border border-gray-200 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Users</p>
+                <p className="text-2xl font-bold text-gray-900">{userCounts.total}</p>
+              </div>
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <UserGroupIcon className="h-6 w-6 text-gray-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <ShieldCheckIcon className="h-6 w-6 text-red-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Admins
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {userCounts.admin}
-                    </dd>
-                  </dl>
-                </div>
+          <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-6 border border-red-200 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Admins</p>
+                <p className="text-2xl font-bold text-gray-900">{userCounts.admin}</p>
+              </div>
+              <div className="p-3 bg-red-100 rounded-lg">
+                <ShieldCheckIcon className="h-6 w-6 text-red-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <ClipboardDocumentListIcon className="h-6 w-6 text-blue-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Officers
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {userCounts.officer}
-                    </dd>
-                  </dl>
-                </div>
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Officers</p>
+                <p className="text-2xl font-bold text-gray-900">{userCounts.officer}</p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <ClipboardDocumentListIcon className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <UserIcon className="h-6 w-6 text-green-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Users
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {userCounts.user}
-                    </dd>
-                  </dl>
-                </div>
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Users</p>
+                <p className="text-2xl font-bold text-gray-900">{userCounts.user}</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <UserIcon className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </div>

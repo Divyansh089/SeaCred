@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield, Users, User, Wallet, TrendingUp, Activity, FolderOpen, Plus, Send } from "lucide-react";
+import { Shield, Users, User, Wallet, TrendingUp, Activity, FolderOpen, Plus, Send, ChevronRight } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { useState, useEffect } from "react";
@@ -308,76 +308,99 @@ export default function RoleBasedDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Welcome Section */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center space-x-4">
-          {getRoleIcon(user.role)}
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Welcome back, {getDisplayName()}!
-            </h1>
-            <p className="text-gray-600 mt-1">{getRoleDescription(user.role)}</p>
+      <div className="bg-gradient-to-r from-green-50 via-blue-50 to-purple-50 rounded-2xl shadow-lg p-8 border border-green-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-6">
+            <div className="p-4 bg-white rounded-xl shadow-md">
+              {getRoleIcon(user.role)}
+            </div>
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Welcome back, {getDisplayName()}!
+              </h1>
+              <p className="text-lg text-gray-600">{getRoleDescription(user.role)}</p>
+            </div>
           </div>
-          <Badge className={getRoleColor(user.role)}>
-            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-          </Badge>
-        </div>
-        
-        {/* Wallet Information */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center space-x-2">
-            <Wallet className="h-5 w-5 text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">Connected Wallet:</span>
-            <span className="text-sm text-gray-600 font-mono">
-              {walletAddress ? formatAddress(walletAddress) : "Not connected"}
-            </span>
+          <div className="flex flex-col items-end space-y-2">
+            <Badge className={`${getRoleColor(user.role)} text-sm px-4 py-2`}>
+              {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+            </Badge>
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Wallet className="h-4 w-4" />
+              <span className="font-mono">
+                {walletAddress ? formatAddress(walletAddress) : "Not connected"}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions & Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {getQuickActions(user.role).map((action, index) => (
-          <div 
-            key={index} 
-            className={`p-6 transition-shadow bg-white rounded-lg shadow border border-gray-200 ${
-              action.type === "stat" ? "" : "hover:shadow-lg cursor-pointer"
-            }`}
-            onClick={() => {
-              if (action.type === "stat") {
-                // Stats cards are not clickable
-                return;
-              }
-              if ("action" in action && action.action === "register") {
-                setIsUserRegistrationModalOpen(true);
-              } else if ("action" in action && action.action === "addOfficer") {
-                setIsAddOfficerModalOpen(true);
-              } else if ("action" in action && action.action === "mintTokens") {
-                setIsMintModalOpen(true);
-              } else if ("href" in action && action.href) {
-                window.location.href = action.href;
-              }
-            }}
-          >
-            <div className="flex items-center space-x-3">
-              <action.icon className="h-6 w-6 text-green-600" />
-              <div>
-                <h3 className="font-medium text-gray-900">{action.name}</h3>
-                {action.type === "stat" ? (
-                  <div className="flex items-center space-x-2">
-                    <span className="text-2xl font-bold text-green-600">
-                      {isLoadingProjects ? "..." : ("value" in action ? action.value : 0)}
-                    </span>
-                    <span className="text-sm text-gray-500">projects</span>
+        {getQuickActions(user.role).map((action, index) => {
+          const isStat = action.type === "stat";
+          const IconComponent = action.icon;
+          
+          // Define gradient colors based on card type
+          const getGradientClass = (index: number) => {
+            const gradients = [
+              "bg-gradient-to-br from-green-50 to-blue-50 border-green-200",
+              "bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200", 
+              "bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200",
+              "bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-200"
+            ];
+            return gradients[index % gradients.length];
+          };
+          
+          return (
+            <div 
+              key={index} 
+              className={`transition-all duration-300 rounded-xl p-6 border shadow-lg hover:shadow-xl hover:scale-105 ${
+                isStat ? "cursor-default" : "cursor-pointer"
+              } ${getGradientClass(index)}`}
+              onClick={() => {
+                if (isStat) return;
+                if ("action" in action && action.action === "register") {
+                  setIsUserRegistrationModalOpen(true);
+                } else if ("action" in action && action.action === "addOfficer") {
+                  setIsAddOfficerModalOpen(true);
+                } else if ("action" in action && action.action === "mintTokens") {
+                  setIsMintModalOpen(true);
+                } else if ("href" in action && action.href) {
+                  window.location.href = action.href;
+                }
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-white rounded-lg shadow-sm">
+                    <IconComponent className="h-6 w-6 text-green-600" />
                   </div>
-                ) : (
-                  <p className="text-sm text-gray-500">Quick access</p>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-lg">{action.name}</h3>
+                    {action.type === "stat" ? (
+                      <div className="flex items-center space-x-2 mt-1">
+                        <span className="text-3xl font-bold text-green-600">
+                          {isLoadingProjects ? "..." : ("value" in action ? action.value : 0)}
+                        </span>
+                        <span className="text-sm text-gray-600 font-medium">projects</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-600 mt-1">Quick access</p>
+                    )}
+                  </div>
+                </div>
+                {!isStat && (
+                  <div className="text-gray-400">
+                    <ChevronRight className="h-5 w-5" />
+                  </div>
                 )}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Role-Specific Content */}

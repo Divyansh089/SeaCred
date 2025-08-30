@@ -290,113 +290,82 @@ export default function VerificationsPage() {
   return (
     <DashboardLayout>
       <div className="px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="sm:flex sm:items-center sm:justify-between">
-          <div className="sm:flex-auto">
-            <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
-              Project Verifications
-            </h1>
-            <p className="mt-2 text-sm text-gray-700">
-              Review and verify carbon credit projects for compliance and
-              accuracy.
-            </p>
-          </div>
-                     <div className="mt-4 sm:mt-0 sm:ml-4 flex space-x-3">
-             <ExportReportButton
-              data={{
-                projects: filteredProjects,
-                stats: {
-                  pending: statusCounts.pending,
-                  inProgress: statusCounts.inProgress,
-                  completed: statusCounts.verified,
-                  rejected: statusCounts.rejected,
-                },
-                userRole: user?.role,
-              }}
-              reportType="Verification Report"
-              variant="dropdown"
-            />
+        {/* Enhanced Header */}
+        <div className="mb-8">
+          <div className="sm:flex sm:items-center sm:justify-between">
+            <div className="sm:flex-auto">
+              <h1 className="text-3xl font-bold leading-7 text-gray-900 sm:truncate sm:text-4xl sm:tracking-tight mb-3">
+                Project Verifications
+              </h1>
+              <p className="text-lg text-gray-600">
+                Review and verify carbon credit projects for compliance and accuracy.
+              </p>
+            </div>
+            <div className="mt-4 sm:mt-0 sm:ml-4 flex space-x-3">
+              <ExportReportButton
+                data={{
+                  projects: filteredProjects,
+                  stats: {
+                    pending: statusCounts.pending,
+                    inProgress: statusCounts.inProgress,
+                    completed: statusCounts.verified,
+                    rejected: statusCounts.rejected,
+                  },
+                  userRole: user?.role,
+                }}
+                reportType="Verification Report"
+                variant="dropdown"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-4">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <ClockIcon className="h-6 w-6 text-yellow-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Pending
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {statusCounts.pending}
-                    </dd>
-                  </dl>
-                </div>
+        {/* Enhanced Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-200 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Pending</p>
+                <p className="text-2xl font-bold text-gray-900">{statusCounts.pending}</p>
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <ClockIcon className="h-6 w-6 text-yellow-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <DocumentTextIcon className="h-6 w-6 text-blue-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      In Progress
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {statusCounts.inProgress}
-                    </dd>
-                  </dl>
-                </div>
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">In Progress</p>
+                <p className="text-2xl font-bold text-gray-900">{statusCounts.inProgress}</p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <DocumentTextIcon className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <CheckCircleIcon className="h-6 w-6 text-green-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Verified
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {statusCounts.verified}
-                    </dd>
-                  </dl>
-                </div>
+          <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-6 border border-green-200 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Verified</p>
+                <p className="text-2xl font-bold text-gray-900">{statusCounts.verified}</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <CheckCircleIcon className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <XCircleIcon className="h-6 w-6 text-red-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Rejected
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {statusCounts.rejected}
-                    </dd>
-                  </dl>
-                </div>
+          <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-6 border border-red-200 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Rejected</p>
+                <p className="text-2xl font-bold text-gray-900">{statusCounts.rejected}</p>
+              </div>
+              <div className="p-3 bg-red-100 rounded-lg">
+                <XCircleIcon className="h-6 w-6 text-red-600" />
               </div>
             </div>
           </div>
@@ -467,47 +436,61 @@ export default function VerificationsPage() {
         {/* Projects Tab */}
         {!loading && activeTab === "projects" && (
           <>
-            {/* Filters */}
-            <div className="mt-6">
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-green-600 sm:text-sm sm:leading-6"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="inProgress">In Progress</option>
-                <option value="verified">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
+            {/* Enhanced Filters */}
+            <div className="mt-6 bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <label className="text-sm font-medium text-gray-700">Filter by Status:</label>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="rounded-lg border border-gray-300 py-2 px-4 text-gray-900 focus:ring-2 focus:ring-green-600 focus:border-green-600 sm:text-sm"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="inProgress">In Progress</option>
+                    <option value="verified">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+                <div className="text-sm text-gray-500">
+                  Showing {filteredProjects.length} of {projects.length} projects
+                </div>
+              </div>
             </div>
 
-            {/* Projects List */}
-            <div className="mt-8 bg-white shadow overflow-hidden sm:rounded-md">
-              <ul role="list" className="divide-y divide-gray-200">
-                {filteredProjects.map((project) => (
-                  <li key={project.id}>
-                    <div className="px-4 py-4 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-3" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">
-                              {project.name}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {project.city}, {project.state} •{" "}
-                              {project.projectType.replace("_", " ")}
-                            </p>
+            {/* Enhanced Projects List */}
+            <div className="mt-8 space-y-4">
+              {filteredProjects.map((project) => (
+                <div key={project.id} className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all duration-300">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-3 bg-gradient-to-br from-green-50 to-blue-50 rounded-lg">
+                        <DocumentTextIcon className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                          {project.name}
+                        </h3>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          <div className="flex items-center space-x-1">
+                            <UserIcon className="h-4 w-4" />
+                            <span>{project.city}, {project.state}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <CalendarIcon className="h-4 w-4" />
+                            <span>{project.projectType.replace("_", " ")}</span>
                           </div>
                         </div>
-                                                 <div className="flex items-center space-x-3">
-                           <span
-                             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getVerificationStatusColor(project.verificationStatus)}`}
-                           >
-                             {getVerificationStatusText(project.verificationStatus)}
-                           </span>
-                           <button
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${getVerificationStatusColor(project.verificationStatus)}`}
+                      >
+                        {getVerificationStatusText(project.verificationStatus)}
+                      </span>
+                      <button
                              onClick={() =>
                                handleViewVerificationDetails(project)
                              }
@@ -519,31 +502,30 @@ export default function VerificationsPage() {
                          </div>
                       </div>
 
-                      <div className="mt-2 sm:flex sm:justify-between">
-                        <div className="sm:flex">
-                          <p className="flex items-center text-sm text-gray-500">
-                            <UserIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                            {project.assignedOfficer && project.assignedOfficer !== "0x0000000000000000000000000000000000000000"
-                              ? `Assigned to ${project.assignedOfficer.slice(0, 6)}...${project.assignedOfficer.slice(-4)}`
-                              : "Unassigned"}
-                          </p>
-                          <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                            <CalendarIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                            Created{" "}
-                            {new Date(project.createdAt * 1000).toLocaleDateString("en-US")}
-                          </p>
-                        </div>
-                        <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                          <DocumentTextIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                          {project.ipfsUrl ? "Documents uploaded" : "No documents"}
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="flex items-center justify-between text-sm text-gray-600">
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-1">
+                              <UserIcon className="h-4 w-4 text-gray-400" />
+                              <span>
+                                {project.assignedOfficer && project.assignedOfficer !== "0x0000000000000000000000000000000000000000"
+                                  ? `Assigned to ${project.assignedOfficer.slice(0, 6)}...${project.assignedOfficer.slice(-4)}`
+                                  : "Unassigned"}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <CalendarIcon className="h-4 w-4 text-gray-400" />
+                              <span>Created {new Date(project.createdAt * 1000).toLocaleDateString("en-US")}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <DocumentTextIcon className="h-4 w-4 text-gray-400" />
+                            <span>{project.ipfsUrl ? "Documents uploaded" : "No documents"}</span>
+                          </div>
                         </div>
                       </div>
-
-                      
                     </div>
-                  </li>
                 ))}
-              </ul>
             </div>
 
             {!loading && filteredProjects.length === 0 && (

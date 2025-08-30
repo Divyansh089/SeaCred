@@ -38,6 +38,7 @@ const navigation: NavItem[] = [
     icon: ClipboardDocumentCheckIcon,
     roles: ["admin", "officer"],
   },
+  { name: "Assigned Users", href: "/assigned-users", icon: UserGroupIcon, roles: ["officer"] },
   { name: "Users", href: "/users", icon: UserGroupIcon, roles: ["admin"] },
   { name: "Settings", href: "/settings", icon: CogIcon },
 ];

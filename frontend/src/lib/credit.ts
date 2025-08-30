@@ -552,3 +552,51 @@ export async function getApprovalByCid(cid: string) {
   };
 }
 
+// Project Management Functions
+export async function removeProject(projectId: number) {
+  const c = await getWriteContract();
+  const tx = await c.removeProject(projectId);
+  await tx.wait();
+  return tx;
+}
+
+export async function startVerification(projectId: number) {
+  const c = await getWriteContract();
+  const tx = await c.startVerification(projectId);
+  await tx.wait();
+  return tx;
+}
+
+export async function rejectUserApplication(userAddress: string, reason: string) {
+  try {
+    console.log("Starting rejectUserApplication...");
+    console.log("Parameters:", { userAddress, reason });
+    
+    // Get all projects for this user
+    const allProjects = await getAllProjects();
+    const userProjects = allProjects.filter(project => 
+      project.owner.toLowerCase() === userAddress.toLowerCase()
+    );
+    
+    console.log("User projects found:", userProjects.length);
+    
+    // Remove all projects for this user
+    for (const project of userProjects) {
+      try {
+        await removeProject(project.id);
+        console.log(`Removed project ${project.id}: ${project.name}`);
+      } catch (error) {
+        console.error(`Error removing project ${project.id}:`, error);
+      }
+    }
+    
+    // TODO: Store rejection reason in IPFS or database
+    console.log("Rejection reason:", reason);
+    
+    return { success: true, projectsRemoved: userProjects.length };
+  } catch (error) {
+    console.error("Error in rejectUserApplication:", error);
+    throw error;
+  }
+}
+

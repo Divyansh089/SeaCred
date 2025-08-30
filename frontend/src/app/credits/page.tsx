@@ -14,8 +14,12 @@ import {
   DocumentTextIcon,
   CheckCircleIcon,
   UserIcon,
+  ChartBarIcon,
+  GlobeAltIcon,
+  LeafIcon,
+  BoltIcon,
 } from "@heroicons/react/24/outline";
-import { TrendingUp as TrendingUpIcon, Users, Send } from "lucide-react";
+import { TrendingUp as TrendingUpIcon, Users, Send, BarChart3, PieChart } from "lucide-react";
 
 interface UserInfo {
   walletAddress: string;
@@ -196,12 +200,12 @@ export default function CreditsPage() {
     <DashboardLayout>
       <div className="px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="sm:flex sm:items-center sm:justify-between">
+        <div className="sm:flex sm:items-center sm:justify-between mb-8">
           <div className="sm:flex-auto">
-            <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+            <h1 className="text-3xl font-bold leading-7 text-gray-900 sm:truncate sm:text-4xl sm:tracking-tight">
               Carbon Credits Management
             </h1>
-            <p className="mt-2 text-sm text-gray-700">
+            <p className="mt-3 text-lg text-gray-600">
               {user?.role === "officer" &&
                 "Manage your verification credits and distribute tokens to users"}
               {user?.role === "admin" &&
@@ -235,66 +239,50 @@ export default function CreditsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <CurrencyDollarIcon className="h-6 w-6 text-green-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Credits
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {loading ? "Loading..." : `${parseFloat(getTotalCredits()).toLocaleString("en-US")} tCO2e`}
-                    </dd>
-                  </dl>
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-6 border border-green-200 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Credits</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {loading ? "Loading..." : `${parseFloat(getTotalCredits()).toLocaleString("en-US")} tCO2e`}
+                </p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <WalletIcon className="h-6 w-6 text-blue-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Available Credits
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {loading ? "Loading..." : `${parseFloat(getAvailableCredits()).toLocaleString("en-US")} tCO2e`}
-                    </dd>
-                  </dl>
-                </div>
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Available Credits</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {loading ? "Loading..." : `${parseFloat(getAvailableCredits()).toLocaleString("en-US")} tCO2e`}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <WalletIcon className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <ArrowTrendingUpIcon className="h-6 w-6 text-purple-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      {user?.role === "admin" ? "Burned Credits" : 
-                       user?.role === "officer" ? "Officer Share" : "Authority Share"}
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {user?.role === "admin" ? 
-                        (loading ? "Loading..." : `${parseFloat(contractData?.burnedCumulative || "0").toLocaleString("en-US")} tCO2e`) :
-                        user?.role === "officer" ? "10%" : "80%"}
-                    </dd>
-                  </dl>
-                </div>
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">
+                  {user?.role === "admin" ? "Burned Credits" : 
+                   user?.role === "officer" ? "Officer Share" : "Authority Share"}
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {user?.role === "admin" ? 
+                    (loading ? "Loading..." : `${parseFloat(contractData?.burnedCumulative || "0").toLocaleString("en-US")} tCO2e`) :
+                    user?.role === "officer" ? "10%" : "80%"}
+                </p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <ArrowTrendingUpIcon className="h-6 w-6 text-purple-600" />
               </div>
             </div>
           </div>
